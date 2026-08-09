@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────
+// Bank Management (módulo 1)
+// ────────────────────────────────────────────────────────────
+enum BankStatus {
+  ACTIVE
+  INACTIVE
+  DEGRADED
+}
+
+enum CollectorType {
+  WEB_SCRAPING
+  MOBILE_PROXY
+  FILE_EXPORT
+  HYBRID
+}
+
+model Bank {
+  id            String        @id @default(uuid())
+  name          String
+  country       String
+  status        BankStatus    @default(ACTIVE)
+  collectorType CollectorType @map("collector_type")
+  adapterKey    String        @unique @map("adapter_key")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  accounts BankAccount[]
+
+  @@map("banks")
+}
+
+// ────────────────────────────────────────────────────────────
+// Bank Account Management (módulo 2)
+// ────────────────────────────────────────────────────────────
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  REAUTH_REQUIRED
+  SUSPENDED
+  ERROR
+}
+
+model BankAccount {
+  id                    String        @id @default(uuid())
+  bankId                String        @map("bank_id")
+  merchantId            String        @map("merchant_id")
+  accountNumber         String        @map("account_number")
+  encryptedCredentials  String        @map("encrypted_credentials") @db.Text
+  status                AccountStatus @default(PENDING)
+  syncEnabled           Boolean       @default(true) @map("sync_enabled")
+  lastSyncAt            DateTime?     @map("last_sync_at")
+  lastMovementReference String?       @map("last_movement_reference")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  bank      Bank        @relation(fields: [bankId], references: [id])
+  movements Movement[]
+  syncLogs  SyncLog[]
+
+  @@index([merchantId])
+  @@index([bankId])
+  @@map("bank_accounts")
+}
+
+// ────────────────────────────────────────────────────────────
+// Movement Management (módulo 11)
+// ────────────────────────────────────────────────────────────
+enum MovementType {
+  DEPOSIT
+  TRANSFER
+  WITHDRAWAL
+  REVERSAL
+  PAYMENT
+  UNKNOWN
+}
+
+enum MovementStatus {
+  RECEIVED
+  VALID
+  INVALID
+  DUPLICATE
+}
+
+model Movement {
+  id           String         @id @default(uuid())
+  accountId    String         @map("account_id")
+  reference    String
+  amount       Decimal        @db.Decimal(18, 2)
+  currency     String         @default("COP")
+  sender       String?
+  receiver     String?
+  movementType MovementType   @map("movement_type")
+  date         DateTime
+  status       MovementStatus @default(RECEIVED)
+  verified     Boolean        @default(false)
+  rawData      Json           @map("raw_data")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  account BankAccount @relation(fields: [accountId], references: [id])
+
+  // Evita duplicados a nivel de base de datos: última línea de defensa
+  // además de la lógica del módulo Movement Deduplication.
+  @@unique([accountId, reference, amount, date], name: "uniq_account_reference_amount_date")
+  @@index([accountId, date])
+  @@map("bank_movements")
+}
+
+// ────────────────────────────────────────────────────────────
+// Sync Log (módulo 12)
+// ────────────────────────────────────────────────────────────
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+model SyncLog {
+  id              String     @id @default(uuid())
+  accountId       String     @map("account_id")
+  startedAt       DateTime   @default(now()) @map("started_at")
+  finishedAt      DateTime?  @map("finished_at")
+  status          SyncStatus @default(RUNNING)
+  error           String?
+  movementsFound  Int        @default(0) @map("movements_found")
+  movementsNew    Int        @default(0) @map("movements_new")
+  durationMs      Int?       @map("duration_ms")
+
+  account BankAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, startedAt])
+  @@map("sync_logs")
+}
