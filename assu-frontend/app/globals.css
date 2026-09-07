@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Superficie principal: blanco, como las pantallas de la app en el
+       brand board — el panel vive en modo claro por defecto; la única
+       superficie oscura intencional es el riel lateral (ver ink.*
+       en tailwind.config.ts), no el panel completo. */
+    --background: 0 0% 100%;
+    --foreground: 165 15% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 165 15% 11%;
+
+    /* Gris con matiz verde (no azul/slate genérico) para que hasta los
+       neutrales se sientan parte de la misma paleta que el teal de marca. */
+    --muted: 160 12% 95%;
+    --muted-foreground: 160 8% 42%;
+    --border: 160 12% 89%;
+
+    /* #38A793 — teal de marca de Assu */
+    --accent: 169 50% 44%;
+    --accent-foreground: 0 0% 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
+}

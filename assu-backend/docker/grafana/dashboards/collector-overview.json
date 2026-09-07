@@ -1,0 +1,73 @@
+{
+  "title": "Assu Backend — Forttu Pagos",
+  "uid": "collector-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Syncs por minuto (éxito vs fallo)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_syncs_total[5m])) by (bank, status) * 60",
+          "legendFormat": "{{bank}} - {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Duración de sync (p95) por banco",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(collector_sync_duration_seconds_bucket[5m])) by (le, bank))",
+          "legendFormat": "{{bank}} p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Movimientos guardados por minuto",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_movements_saved_total[5m])) by (bank) * 60",
+          "legendFormat": "{{bank}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Errores de sync por tipo",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_sync_errors_total[5m])) by (bank, errorType) * 60",
+          "legendFormat": "{{bank}} - {{errorType}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Reintentos por minuto",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [{ "expr": "rate(collector_retries_total[5m]) * 60", "legendFormat": "reintentos" }]
+    },
+    {
+      "id": 6,
+      "title": "Sesiones expiradas detectadas",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [{ "expr": "increase(collector_expired_sessions_total[1h])", "legendFormat": "última hora" }]
+    }
+  ]
+}

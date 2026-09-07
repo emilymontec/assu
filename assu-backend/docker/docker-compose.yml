@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: assu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: assu
+      POSTGRES_PASSWORD: assu
+      POSTGRES_DB: assu
+    ports:
+      - '5432:5432'
+    volumes:
+      - assu-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U assu']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: assu-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - assu-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: assu-prometheus
+    restart: unless-stopped
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - assu-prometheus-data:/prometheus
+    # Assu Backend (NestJS) corre en el host, no en este compose —
+    # extra_hosts es necesario en Linux para que el contenedor de
+    # Prometheus pueda resolver host.docker.internal (en Docker
+    # Desktop para Mac/Windows ya funciona sin esto).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: assu-grafana
+    restart: unless-stopped
+    ports:
+      - '3001:3000' # 3000 la usa Assu Backend; Grafana queda en 3001
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true' # solo para desarrollo local
+      GF_AUTH_ANONYMOUS_ORG_ROLE: 'Admin'
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - assu-grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  assu-postgres-data:
+  assu-redis-data:
+  assu-prometheus-data:
+  assu-grafana-data:

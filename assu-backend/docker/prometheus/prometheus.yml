@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: assu-backend
+    metrics_path: /metrics
+    static_configs:
+      # Assu Backend corre en el host (npm run start:dev), no dentro de
+      # este docker-compose (solo Postgres/Redis/Prometheus/Grafana
+      # están containerizados) — por eso se scrapea vía
+      # host.docker.internal en vez del nombre de un servicio.
+      - targets: ['host.docker.internal:3000']

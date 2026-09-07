@@ -1,78 +1,231 @@
-# Collector — Forttu Pagos OpenSource
+<div align="center">
 
-Microservicio desacoplado que se conecta a entidades financieras (bancos y
-billeteras digitales), detecta movimientos nuevos y los entrega
-normalizados al resto de la plataforma. **No utiliza APIs oficiales de open
-banking**: la adquisición se realiza automatizando el canal digital de cada
-entidad (portal web, principalmente vía Playwright).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme_assets/assu.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/readme_assets/assu.svg">
+  <img alt="Assu" src="docs/readme_assets/assu.svg" width="300">
+</picture>
 
-Este repo contiene únicamente la **base** del proyecto. Los 23 módulos
-funcionales del roadmap se agregan progresivamente dentro de `src/modules/`
-(ver `src/modules/README.md` para la convención).
+<p align="center">
+  <strong>automatic transfer verification — detects real bank movements and matches them against payment receipts</strong>
+</p>
 
-## Qué incluye esta base
+<p align="center">
+  <a href="./docs/#">Backend</a> ·
+  <a href="./docs/#">Dashboard</a> ·
+  <a href="./docs/#">Testing Guide</a> ·
+  <a href="./docs/#">Banks Setup</a>
+</p>
 
-- Bootstrap de NestJS con Pino (logs estructurados + redacción automática
-  de credenciales), Swagger (`/docs`) y `ValidationPipe` global.
-- `ConfigModule` global con validación estricta de variables de entorno
-  (`class-validator`) — la app no arranca si falta una variable requerida.
-- `PrismaModule` global conectado a PostgreSQL, con el schema de las 4
-  tablas base: `banks`, `bank_accounts`, `bank_movements`, `sync_logs`
-  (incluye el índice único de deduplicación).
-- `src/core/domain/`: entidades de dominio puras (Bank, BankAccount,
-  Movement, SyncLog) — sin dependencias de NestJS ni Prisma.
-- `src/core/ports/`: contratos (`CollectorAdapter`, `EncryptionPort`,
-  `EventPublisherPort`, `SessionStorePort`, `MovementRepositoryPort`) que
-  cada módulo futuro implementará o consumirá.
-- `src/core/base/playwright-adapter.base.ts`: clase base para todo adapter
-  de banco, con manejo de browser/contexto, timeouts y captura de evidencia
-  ante fallos — porque todo adapter futuro se apoyará en scraping, no en
-  APIs oficiales.
-- `src/common/errors/`: jerarquía `TransientError` vs `PermanentError`,
-  usada por el `AllExceptionsFilter` para responder con el código HTTP
-  correcto y, más adelante, por el módulo Retry & Error Handling.
-- `GET /health`: endpoint de sanity check (verifica conexión a PostgreSQL).
-- `docker/`: Postgres + Redis vía Docker Compose, y un Dockerfile
-  multi-stage basado en la imagen oficial de Playwright para producción.
+<p align="center">
+  <img alt="tests" src="https://img.shields.io/badge/backend-typescript-38A793?style=flat-square" />
+  <img alt="stack" src="https://img.shields.io/badge/frontend-Next.js-38A793?style=flat-square" />
+  <img alt="license" src="https://img.shields.io/badge/database-supabase-38A793?style=flat-square" />
+</p>
 
-## Arranque local
+</div>
+
+---
+
+<div align="justify">
+
+A customer sends a screenshot or PDF of a transfer over WhatsApp. Assu reads it, checks whether a matching movement actually happened in the bank account, and tells the merchant whether the payment is verified — without a human having to open a bank app and eyeball a list of transactions.
+
+Assu is two cooperating services:
+
+| | |
+|---|---|
+| **Movement Detection** | Logs into Nequi, Bancolombia, and Davivienda (via Playwright — no official open banking API exists for this), pulls new movements, normalizes and deduplicates them. |
+| **Receipt Verification** | Receives receipts over WhatsApp, runs OCR, and reconciles the extracted amount/reference/time against real bank movements. |
+| **Reconciliation Engine** | Deterministic scoring (reference + amount + time window) → `EXACT_MATCH`, `PROBABLE_MATCH`, `AMBIGUOUS_MATCH`, `NO_MATCH`, or `PENDING`. No ML, no guessing. |
+| **Audited State Machine** | `RECEIVED → PROCESSING → PENDING_MOVEMENT → MATCHING → VERIFIED/REJECTED/AMBIGUOUS/ERROR/MANUAL_REVIEW`. Every transition is logged with an actor and a reason. |
+| **WhatsApp Ingestion** | Built on [open-wa](https://github.com/open-wa/wa-automate-nodejs) — no Meta Business account required, just a QR scan. |
+| **Administrator Panel** | Next.js ops dashboard: banks, accounts, movements, sync history, monitoring. |
+
+---
+
+## Use Assu
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<h3> I'm running the backend</h3>
+
+The engine that detects movements and verifies receipts. A NestJS microservice with its own Postgres, Redis, and BullMQ queues.
+
+**[→ Jump to backend setup](#backend-assu-backend)**
+
+</td>
+<td width="50%" valign="top">
+
+<h3> I need the ops dashboard</h3>
+
+A Next.js panel that consumes the backend's Internal API — view accounts, force a sync, review a flagged payment.
+
+**[→ Jump to frontend setup](#admin-panel-assu-frontend)**
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+
+<h3> I'm adding a new bank</h3>
+
+Bank-specific logic is fully isolated behind a `CollectorAdapter` port (`login()`, `sync()`, `logout()`) — no core code changes needed for a new integration.
+
+**[→ Jump to architecture](#how-it-works)**
+
+</td>
+</tr>
+</table>
+
+---
+
+## How it works
+
+```text
+   WhatsApp (open-wa)                         Bank portals (Playwright)
+           │                                            │
+           ▼                                            ▼
+   Receipt Ingestion                            Bank Adapter System
+   (idempotent, signed session)                 (login → sync → logout)
+           │                                            │
+           ▼                                            ▼
+   Receipt Processing                              Sync Engine
+   (validate · hash · OCR)                    (parse · validate · dedupe)
+           │                                            │
+           └──────────────────┬─────────────────────────┘
+                               ▼
+                   Reconciliation Engine
+             reference + amount + time window
+                               │
+                               ▼
+                   Payment Verification
+              (audited state machine, CAS-guarded)
+                               │
+                 ┌─────────────┼──────────────┐
+                 ▼             ▼              ▼
+             VERIFIED      REJECTED     MANUAL_REVIEW
+                               │
+                               ▼
+                        Internal API  ────────►  Admin Panel
+                                                  (assu-frontend)
+```
+<div align="justify">
+
+**A technical failure is never a rejection.** If OCR times out or the bank portal is unreachable, the submission goes to `ERROR` — never `REJECTED`. Only real evidence (a bank movement window with no matching amount/reference) produces a rejection, and even then the customer is told *"we couldn't verify this yet"*, not *"this is fake."*
+
+**"Not found yet" is never "not real."** A movement that Assu hasn't synced yet keeps a submission in `PENDING_MOVEMENT` for retry — it's a distinct state from a genuine mismatch.
+
+**One movement, one payment.** A `matchedMovementId` unique constraint at the database level — not just application logic — guarantees a bank movement can never verify two different receipts.
+
+**No silent overrides.** `REJECTED` or `AMBIGUOUS` can only become `VERIFIED` through an explicit, audited manual review with a named human actor — never automatically.
+
+</div>
+
+---
+
+## Backend (`assu-backend`)
+
+<img alt="stack" src="https://img.shields.io/badge/NestJS-+10-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/TypeScript-5.5-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/Supabase-Prisma-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/Redis-BullMQ-38A793?style=flat-square" />
+
+
+### Quickstart
 
 ```bash
-# 1. Instalar dependencias
+cd assu-backend
+docker compose -f docker/docker-compose.yml up -d postgres redis
+
+corepack enable
 pnpm install
+cp .env.example .env       # set INTERNAL_API_KEY, OCR_PROVIDER, OPENWA_* as needed
 
-# 2. Variables de entorno
-cp .env.example .env
-# Generar CREDENTIALS_ENCRYPTION_KEY con: openssl rand -hex 32
-
-# 3. Levantar Postgres + Redis
-docker compose -f docker/docker-compose.yml up -d
-
-# 4. Generar cliente Prisma y correr migraciones
 pnpm run prisma:generate
 pnpm run prisma:migrate:dev
 
-# 5. (Solo si vas a implementar un adapter con Playwright)
-pnpm run playwright:install
-
-# 6. Arrancar en modo desarrollo
-pnpm run start:dev
+pnpm test                  # 199 tests
+pnpm run start:dev         # API on :3000, docs on :3000/docs
 ```
 
-- API: http://localhost:3000
-- Swagger: http://localhost:3000/docs
-- Health check: http://localhost:3000/health
+### Modules
 
-## Siguiente paso
+| Area | What it does |
+|---|---|
+| `bank`, `bank-account`, `bank-adapter` | Bank registry, connected accounts, pluggable `CollectorAdapter` per bank |
+| `session-manager`, `login-manager` | Cookie/token lifecycle, re-auth detection |
+| `scheduler`, `queue` | Per-account sync frequency, BullMQ jobs with backoff |
+| `sync-engine`, `movement-parser`, `movement-validator`, `movement-deduplication` | The detect → normalize → validate → dedupe → store pipeline |
+| `credentials`, `audit`, `rate-limiting` | AES-256-GCM encrypted credentials, full audit trail, per-bank throttling |
+| `receipt-ingestion` | WhatsApp receipt intake via open-wa |
+| `receipt-processing` | File validation, hashing, OCR (`NullOcrAdapter` placeholder or real `TesseractOcrAdapter`) |
+| `reconciliation-engine` | Deterministic receipt-to-movement matching |
+| `payment-verification` | The audited state machine + manual review endpoint |
+| `observability`, `monitoring` | Prometheus metrics, Grafana dashboard, staleness/error-rate alerts |
 
-Según `src/modules/README.md`, el orden sugerido es:
+<div align="center">
+<sub>
+Full walkthrough (infra, smoke tests, WhatsApp/OCR setup, checklists) → TEST GUIDE in docs/.
+</sub>
+</div>
 
-1. **Bank Management** — CRUD de bancos + `adapterKey`.
-2. **Credentials/Security** — cifrado AES-256-GCM (necesario antes de poder
-   crear cuentas con credenciales reales).
-3. **Bank Account Management** — depende de los dos anteriores.
-4. **Bank Adapter System** — primer adapter real (Nequi) extendiendo
-   `PlaywrightAdapterBase`.
+---
 
-Ver `Arquitectura-Collector-v1.md` para el detalle completo de los 23
-módulos, sus pendientes por sprint y las decisiones de arquitectura.
+## Administrator Panel (`assu-frontend`)
+
+<img alt="stack" src="https://img.shields.io/badge/Next.js-14-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/TailwindCSS-3.4-38A793?style=flat-square" />
+
+
+### Quickstart
+
+```bash
+cd assu-frontend
+pnpm install
+cp .env.example .env.local   # ASSU_BACKEND_API_URL, ASSU_BACKEND_API_KEY
+
+pnpm run dev -- -p 3001      # backend already owns :3000
+```
+
+### Security note
+
+The browser never sees `ASSU_BACKEND_API_KEY`. Every request goes to a relative `/api/backend/...` route, resolved server-side by `app/api/backend/[...path]/route.ts`, which is the only place the key is attached before forwarding to the real backend.
+
+### Brand
+
+- Color: `#38A793` — token `--accent`, used consistently across cards, badges, and the sidebar's active states.
+- Logo: **Backline** (real brand font, `app/fonts/Backline.otf`) — wordmark only, never body text.
+- Display font: **Folty Bold** (`app/fonts/Folty-Bold.woff2`) — page titles only; only the Bold cut exists, so body/table text stays on Manrope for legibility at small sizes.
+
+---
+
+## What's not real yet
+
+| Gap | Why |
+|---|---|
+| Live Nequi scraping | `NequiAdapter`'s selectors are placeholders — needs a real account inspected with `playwright codegen`. See [`docs/#`]("./docs/#"). |
+| Cloud OCR fallback | `TesseractOcrAdapter` is real and free, but there's no Google Vision/Textract adapter yet for higher-accuracy production use. |
+
+Everything else in the diagram above is implemented and tested — the reconciliation engine, the state machine, WhatsApp ingestion, and the admin panel all run end-to-end against a real database and queue.
+
+---
+
+## Links
+
+- [Testing Guide](./docs/#)
+- [Nequi Adapter Setup](./docs/#)
+- [Backend Information](./docs/#)
+- [Administrator Panel](./docs/#)
+
+---
+
+</div>
+
+<p align="center">
+  <strong>A receipt is a claim.<br>
+  A bank movement is the evidence.<br>
+  Assu only says "verified" when both agree.</strong>
+</p>

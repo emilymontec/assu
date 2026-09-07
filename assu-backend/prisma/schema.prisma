@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BankStatus {
+  ACTIVE
+  INACTIVE
+  DEGRADED
+}
+
+enum CollectorType {
+  WEB_SCRAPING
+  MOBILE_PROXY
+  FILE_EXPORT
+  HYBRID
+}
+
+model Bank {
+  id            String        @id @default(uuid())
+  name          String
+  country       String
+  status        BankStatus    @default(ACTIVE)
+  collectorType CollectorType @map("collector_type")
+  adapterKey    String        @unique @map("adapter_key")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  accounts BankAccount[]
+
+  @@map("banks")
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  REAUTH_REQUIRED
+  SUSPENDED
+  ERROR
+}
+
+model BankAccount {
+  id                    String        @id @default(uuid())
+  bankId                String        @map("bank_id")
+  merchantId            String        @map("merchant_id")
+  accountNumber         String        @map("account_number")
+  encryptedCredentials  String        @map("encrypted_credentials") @db.Text
+  status                AccountStatus @default(PENDING)
+  syncEnabled           Boolean       @default(true) @map("sync_enabled")
+  syncIntervalSeconds   Int           @default(60) @map("sync_interval_seconds")
+  lastSyncAt            DateTime?     @map("last_sync_at")
+  lastMovementReference String?       @map("last_movement_reference")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  bank               Bank                @relation(fields: [bankId], references: [id])
+  movements          Movement[]
+  syncLogs           SyncLog[]
+  paymentSubmissions PaymentSubmission[]
+
+  @@index([merchantId])
+  @@index([bankId])
+  @@map("bank_accounts")
+}
+
+enum MovementType {
+  DEPOSIT
+  TRANSFER
+  WITHDRAWAL
+  REVERSAL
+  PAYMENT
+  UNKNOWN
+}
+
+enum MovementStatus {
+  RECEIVED
+  VALID
+  INVALID
+  DUPLICATE
+}
+
+model Movement {
+  id           String         @id @default(uuid())
+  accountId    String         @map("account_id")
+  reference    String
+  amount       Decimal        @db.Decimal(18, 2)
+  currency     String         @default("COP")
+  sender       String?
+  receiver     String?
+  movementType MovementType   @map("movement_type")
+  date         DateTime
+  status       MovementStatus @default(RECEIVED)
+  verified     Boolean        @default(false)
+  rawData      Json           @map("raw_data")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  account BankAccount @relation(fields: [accountId], references: [id])
+
+  // Un movimiento solo puede quedar VERIFIED en, como máximo, un
+  // PaymentSubmission. La constraint es la barrera real contra "reusar"
+  // un mismo movimiento para validar dos comprobantes: aunque el código
+  // de aplicación tenga un bug de concurrencia, Postgres no deja
+  // insertar/actualizar un segundo submission con el mismo
+  // matched_movement_id (múltiples NULL sí están permitidos).
+  paymentSubmission PaymentSubmission?
+
+  @@unique([accountId, reference, amount, date], name: "uniq_account_reference_amount_date")
+  @@index([accountId, date])
+  @@map("bank_movements")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Verificación de comprobantes (Payment Verification)
+//
+// Representa el flujo: comprobante recibido (WhatsApp/API) → OCR →
+// conciliación contra `Movement` → estado final. Vive en tablas propias,
+// separadas de `Movement`, para no acoplar la detección bancaria (que
+// no sabe nada de comprobantes) con la verificación de pagos (que no
+// sabe nada de scraping).
+// ─────────────────────────────────────────────────────────────────────
+
+enum SubmissionChannel {
+  WHATSAPP
+  API
+}
+
+// Máquina de estados. Las transiciones válidas viven en código
+// (payment-verification.service.ts / ALLOWED_TRANSITIONS), no aquí:
+// Postgres no impide guardar cualquier valor del enum, por eso el
+// guardado de cada cambio de estado pasa siempre por
+// PaymentVerificationService.transition(), que sí las valida y dejan
+// registro en VerificationEvent.
+enum PaymentSubmissionStatus {
+  RECEIVED
+  PROCESSING
+  PENDING_MOVEMENT
+  MATCHING
+  VERIFIED
+  AMBIGUOUS
+  REJECTED
+  ERROR
+  MANUAL_REVIEW
+}
+
+enum MatchResult {
+  EXACT_MATCH
+  PROBABLE_MATCH
+  AMBIGUOUS_MATCH
+  NO_MATCH
+  PENDING
+}
+
+enum OcrConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model PaymentSubmission {
+  id      String            @id @default(uuid())
+  channel SubmissionChannel
+
+  // Id del mensaje/evento en el canal de origen (ej. WhatsApp message id).
+  // Junto con `channel` da idempotencia real ante reintentos/reentregas
+  // del webhook: un mismo mensaje jamás crea dos submissions.
+  externalMessageId String? @map("external_message_id")
+
+  senderIdentifier String  @map("sender_identifier") // teléfono/usuario, ya enmascarado antes de persistir
+  bankAccountId    String? @map("bank_account_id") // cuenta contra la que se intentará conciliar; puede resolverse después
+
+  fileHash       String @map("file_hash") @db.VarChar(64) // sha256 del archivo recibido, para detectar reutilización
+  fileStorageRef String @map("file_storage_ref") // referencia opaca (no la ruta cruda) al almacenamiento del archivo
+  fileMimeType   String @map("file_mime_type")
+
+  status PaymentSubmissionStatus @default(RECEIVED)
+
+  ocrExtractedData Json?          @map("ocr_extracted_data")
+  ocrConfidence    OcrConfidence? @map("ocr_confidence")
+
+  matchedMovementId String?      @unique @map("matched_movement_id")
+  matchResult       MatchResult? @map("match_result")
+  matchScore        Float?       @map("match_score")
+
+  rejectionReason String? @map("rejection_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bankAccount     BankAccount?        @relation(fields: [bankAccountId], references: [id])
+  matchedMovement Movement?           @relation(fields: [matchedMovementId], references: [id])
+  events          VerificationEvent[]
+
+  // Idempotencia ante reentregas del webhook (WhatsApp/otros reintentan
+  // si no reciben 200 a tiempo).
+  @@unique([channel, externalMessageId], name: "uniq_channel_external_message")
+  @@index([fileHash])
+  @@index([status])
+  @@index([bankAccountId])
+  @@map("payment_submissions")
+}
+
+model VerificationEvent {
+  id           String                   @id @default(uuid())
+  submissionId String                   @map("submission_id")
+  fromStatus   PaymentSubmissionStatus? @map("from_status")
+  toStatus     PaymentSubmissionStatus  @map("to_status")
+  reason       String?                  @db.Text
+  actor        String // "SYSTEM" | "USER:<id>" — quién disparó la transición
+  createdAt    DateTime                 @default(now()) @map("created_at")
+
+  submission PaymentSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+  @@map("verification_events")
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  SYNC
+  CONFIG_CHANGE
+  ADMIN_OPERATION
+  ERROR
+}
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+}
+
+/**
+ * Registro append-only de operaciones sensibles del sistema. No tiene
+ * relación (FK) con Bank/BankAccount a propósito: si la cuenta se borra
+ * algún día, el rastro de auditoría debe sobrevivir intacto para
+ * investigación de incidentes (por eso `entityId` es un String suelto,
+ * no una FK con cascade).
+ */
+model AuditLog {
+  id           String      @id @default(uuid())
+  action       AuditAction
+  actor        String
+  entityType   String      @map("entity_type")
+  entityId     String?     @map("entity_id")
+  result       AuditResult
+  metadata     Json?
+  errorMessage String?     @map("error_message")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+enum AlertType {
+  ACCOUNT_NOT_SYNCING
+  HIGH_ERROR_RATE
+  ACCOUNT_ESCALATED
+  SERVICE_DEGRADED
+}
+
+enum AlertSeverity {
+  WARNING
+  CRITICAL
+}
+
+/**
+ * Igual que AuditLog: append-only y sin FK a propósito, para que la
+ * alerta sobreviva como evidencia aunque la cuenta/banco se borre
+ * después.
+ */
+model AlertLog {
+  id         String        @id @default(uuid())
+  type       AlertType
+  severity   AlertSeverity
+  message    String
+  entityType String        @map("entity_type")
+  entityId   String?       @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([type, entityType, entityId])
+  @@index([createdAt])
+  @@map("alert_logs")
+}
+
+model SyncLog {
+  id              String     @id @default(uuid())
+  accountId       String     @map("account_id")
+  startedAt       DateTime   @default(now()) @map("started_at")
+  finishedAt      DateTime?  @map("finished_at")
+  status          SyncStatus @default(RUNNING)
+  error           String?
+  movementsFound  Int        @default(0) @map("movements_found")
+  movementsNew    Int        @default(0) @map("movements_new")
+  durationMs      Int?       @map("duration_ms")
+
+  account BankAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, startedAt])
+  @@map("sync_logs")
+}

@@ -1,0 +1,8 @@
+export enum AuditAction {
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  SYNC = 'SYNC',
+  CONFIG_CHANGE = 'CONFIG_CHANGE',
+  ADMIN_OPERATION = 'ADMIN_OPERATION',
+  ERROR = 'ERROR',
+}

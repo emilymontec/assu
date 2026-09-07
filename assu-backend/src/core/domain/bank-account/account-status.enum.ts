@@ -1,0 +1,7 @@
+export enum AccountStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  REAUTH_REQUIRED = 'REAUTH_REQUIRED',
+  SUSPENDED = 'SUSPENDED',
+  ERROR = 'ERROR',
+}
