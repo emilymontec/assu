@@ -29,8 +29,7 @@ respuesta a la primera es "no", el resto de la Fase 0 no aplica y hay
 que reconsiderar el enfoque de "Bank Adapter System" completo:
 
 1. **¿Los términos de uso de Nequi permiten automatizar el acceso a la
-   cuenta de un usuario final?** Revísalo con quien lleve el tema legal
-   de Forttu Pagos. Muchos bancos prohíben explícitamente el scraping en
+   cuenta de un usuario final?** Revísalo con quien lleve el tema legal. Muchos bancos prohíben explícitamente el scraping en
    sus términos, incluso con el consentimiento del titular de la cuenta.
 2. **¿La cuenta de Nequi que vas a usar para probar tiene MFA/OTP
    activado?** Si Nequi pide un código que llega por SMS/notificación
