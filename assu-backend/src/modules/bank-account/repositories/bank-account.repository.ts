@@ -13,6 +13,7 @@ function toDomain(record: PrismaBankAccount): BankAccount {
     record.merchantId,
     record.accountNumber,
     record.encryptedCredentials,
+    record.credentialsReadOnlyConfirmed,
     record.status as AccountStatus,
     record.syncEnabled,
     record.syncIntervalSeconds,
@@ -34,6 +35,7 @@ export interface CreateBankAccountData {
   merchantId: string;
   accountNumber: string;
   encryptedCredentials: string;
+  credentialsReadOnlyConfirmed: boolean;
   syncIntervalSeconds: number;
 }
 
@@ -87,10 +89,10 @@ export class BankAccountRepository {
   }
 
   /** Rotar credenciales siempre vuelve la cuenta a PENDING: nadie ha probado que las nuevas funcionen todavía. */
-  async updateCredentials(id: string, encryptedCredentials: string): Promise<BankAccount> {
+  async updateCredentials(id: string, encryptedCredentials: string, credentialsReadOnlyConfirmed: boolean): Promise<BankAccount> {
     const record = await this.prisma.bankAccount.update({
       where: { id },
-      data: { encryptedCredentials, status: AccountStatus.PENDING },
+      data: { encryptedCredentials, credentialsReadOnlyConfirmed, status: AccountStatus.PENDING },
     });
     return toDomain(record);
   }

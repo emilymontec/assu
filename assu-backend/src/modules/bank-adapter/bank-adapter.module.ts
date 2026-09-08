@@ -1,7 +1,7 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { AdapterRegistryService } from './adapter-registry.service';
 import { AdapterFactoryService } from './adapter-factory.service';
-import { NequiAdapter } from './adapters/nequi/nequi.adapter';
+import { ADAPTER_MAP } from '../../scraper-worker/adapter-map';
 
 @Module({
   providers: [AdapterRegistryService, AdapterFactoryService],
@@ -13,9 +13,12 @@ export class BankAdapterModule implements OnModuleInit {
   constructor(private readonly registry: AdapterRegistryService) {}
 
   onModuleInit(): void {
-    // Para agregar un banco nuevo: crear su adapter en adapters/<banco>/
-    // (extendiendo PlaywrightAdapterBase) y añadir una línea aquí con el
-    // mismo `adapterKey` que se usó al registrar el banco en Bank Management.
-    this.registry.register('nequi', NequiAdapter);
+    // La lista de bancos vive en un solo lugar (ADAPTER_MAP) para que el
+    // modo in-process (acá) y el modo docker (scraper-worker/entrypoint.ts)
+    // nunca queden desincronizados. Para agregar un banco nuevo: una
+    // entrada en ADAPTER_MAP alcanza para ambos modos.
+    for (const [adapterKey, adapterClass] of Object.entries(ADAPTER_MAP)) {
+      this.registry.register(adapterKey, adapterClass);
+    }
   }
 }

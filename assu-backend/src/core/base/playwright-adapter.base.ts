@@ -3,9 +3,24 @@ import { BankCredentials, CollectorAdapter, ExportedSession } from '../ports/col
 import { RawMovement } from '../domain/movement/movement.entity';
 import { BankUnavailableError, TimeoutError } from '../../common/errors/transient.error';
 
+export interface PlaywrightProxyOptions {
+  server: string; // ej. 'http://proxy.provider.com:8000' — server dedicado o proxy residencial
+  username?: string;
+  password?: string;
+}
+
 export interface PlaywrightAdapterOptions {
   headless: boolean;
   timeoutMs: number;
+  /**
+   * Opcional a propósito: sin esto configurado, el tráfico sale con la
+   * IP normal del servidor donde corre Collector. Configurarlo (ver
+   * `AdapterFactoryService` + `PLAYWRIGHT_PROXY_*` en `.env`) hace que
+   * cada request al banco salga por un proxy dedicado/residencial —
+   * reduce (no elimina) el riesgo de que la banca en línea marque el
+   * tráfico automatizado como sospechoso.
+   */
+  proxy?: PlaywrightProxyOptions;
 }
 
 /**
@@ -26,7 +41,10 @@ export abstract class PlaywrightAdapterBase implements CollectorAdapter {
 
   protected async openBrowser(): Promise<void> {
     try {
-      this.browser = await chromium.launch({ headless: this.options.headless });
+      this.browser = await chromium.launch({
+        headless: this.options.headless,
+        ...(this.options.proxy && { proxy: this.options.proxy }),
+      });
       this.context = await this.browser.newContext();
       this.context.setDefaultTimeout(this.options.timeoutMs);
       this.page = await this.context.newPage();

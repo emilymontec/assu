@@ -21,9 +21,16 @@ Reglas:
 ## Estado
 
 - [x] **Bank Management** — CRUD completo, protegido con ApiKeyGuard.
-- [x] **Credentials/Security** — AES-256-GCM + rotación de claves, 7 tests unitarios.
-- [x] **Bank Account Management** — CRUD, rotación de credenciales, suspender/reactivar, 9 tests unitarios.
-- [x] **Bank Adapter System** — Registry + Factory + NequiAdapter (selectores placeholder), 16 tests unitarios.
+- [x] **Credentials/Security** — AES-256-GCM local o AWS KMS (a elección,
+  `ENCRYPTION_PROVIDER`) + rotación de claves + atestación obligatoria de
+  credenciales de solo lectura, 13 tests unitarios.
+- [x] **Bank Account Management** — CRUD, rotación de credenciales, suspender/reactivar, 14 tests unitarios.
+- [x] **Bank Adapter System** — Registry + Factory + NequiAdapter,
+  BancolombiaAdapter, DaviplataAdapter (los tres con selectores
+  placeholder, Fase 0 pendiente); proxy dedicado/residencial opcional; modo
+  de aislamiento en Docker (`DockerIsolatedAdapter`, contenedor desechable
+  por operación) opcional — ver "Endurecimiento de seguridad" en el README
+  raíz. 50 tests unitarios.
 - [x] **Session Manager** — RedisSessionStoreService + SessionManagerService, TTL nativo de Redis, 18 tests unitarios.
 - [x] **Login Manager** — orquesta Bank Account + Bank + Bank Adapter + Session Manager, 10 tests unitarios.
 - [x] **Scheduler** — BullMQ repeatable jobs, frecuencia por cuenta, resync automático cada 5 min, 8 tests unitarios.
@@ -92,7 +99,7 @@ requiere tocar el resto del sistema.
 `pdf-parse`) — actívalo con `OCR_PROVIDER=tesseract` en `.env`. Sus
 patrones de extracción (`receipt-text-parser.ts`) están hechos con
 comprobantes colombianos típicos en mente pero DEBEN ajustarse con
-comprobantes reales de Nequi/Bancolombia/Davivienda apenas se tengan —
+comprobantes reales de Nequi/Bancolombia/Daviplata apenas se tengan —
 agregar un patrón nuevo ahí no requiere tocar el resto del pipeline.
 Mientras no se active, `NullOcrAdapter` (el default) manda todo a
 `MANUAL_REVIEW` — nunca un falso `VERIFIED`.

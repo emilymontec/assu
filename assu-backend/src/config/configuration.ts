@@ -13,9 +13,22 @@ export default () => ({
     password: process.env.REDIS_PASSWORD || undefined,
   },
   security: {
+    // 'local': AES-256-GCM con la clave en CREDENTIALS_ENCRYPTION_KEY (esta
+    // variable de entorno). Simple y funciona, pero la clave "vive" en el
+    // servidor — quien tenga acceso al proceso/entorno puede leerla.
+    // 'aws-kms': cada encrypt()/decrypt() llama a AWS KMS; la clave real
+    // NUNCA sale de KMS ni pasa por la memoria de este proceso — Collector
+    // solo envía el texto plano/cifrado y KMS hace la operación criptográfica
+    // del lado de AWS. Requiere AWS_KMS_KEY_ID (+ credenciales de AWS
+    // estándar: variables de entorno, rol de IAM, etc. — no se gestionan acá).
+    encryptionProvider: process.env.ENCRYPTION_PROVIDER ?? 'local',
     credentialsEncryptionKey: process.env.CREDENTIALS_ENCRYPTION_KEY,
     credentialsEncryptionKeyPrevious: process.env.CREDENTIALS_ENCRYPTION_KEY_PREVIOUS || undefined,
     internalApiKey: process.env.INTERNAL_API_KEY,
+    awsKms: {
+      region: process.env.AWS_KMS_REGION ?? 'us-east-1',
+      keyId: process.env.AWS_KMS_KEY_ID,
+    },
   },
   scheduler: {
     defaultSyncIntervalSeconds: parseInt(process.env.DEFAULT_SYNC_INTERVAL_SECONDS ?? '60', 10),
@@ -27,6 +40,18 @@ export default () => ({
   playwright: {
     headless: (process.env.PLAYWRIGHT_HEADLESS ?? 'true').toLowerCase() === 'true',
     timeoutMs: parseInt(process.env.PLAYWRIGHT_TIMEOUT_MS ?? '30000', 10),
+    // Sin PLAYWRIGHT_PROXY_SERVER, el scraping sale con la IP normal del
+    // servidor. Con un proxy dedicado/residencial (Bright Data, Smartproxy,
+    // Oxylabs, o una IP fija propia autorizada frente al banco) configurado
+    // acá, cada AdapterFactoryService.create() lo hereda automáticamente —
+    // ningún adapter individual necesita saber que existe.
+    proxy: process.env.PLAYWRIGHT_PROXY_SERVER
+      ? {
+          server: process.env.PLAYWRIGHT_PROXY_SERVER,
+          username: process.env.PLAYWRIGHT_PROXY_USERNAME,
+          password: process.env.PLAYWRIGHT_PROXY_PASSWORD,
+        }
+      : undefined,
   },
   logging: {
     level: process.env.LOG_LEVEL ?? 'info',
@@ -76,5 +101,27 @@ export default () => ({
     // de Forttu Pagos pertenece. Para este demo, cada sesión de open-wa
     // está dedicada a una sola cuenta bancaria, configurada acá.
     bankAccountId: process.env.OPENWA_BANK_ACCOUNT_ID ?? null,
+  },
+  scraperIsolation: {
+    // 'in-process' (default): el adapter corre Playwright dentro de este
+    // mismo proceso de Node — rápido, sin dependencias extra, ideal para
+    // desarrollo/demo. 'docker': cada login/sync/logout corre en un
+    // contenedor `docker run --rm` desechable (ver docker/scraper/) que
+    // se destruye apenas termina — más aislamiento, más lento, requiere
+    // Docker disponible en el host donde corre Assu Backend.
+    mode: process.env.SCRAPER_ISOLATION_MODE ?? 'in-process',
+    dockerImage: process.env.SCRAPER_DOCKER_IMAGE ?? 'assu-backend-scraper:latest',
+    // Más holgado que playwright.timeoutMs: además del timeout interno
+    // del propio Playwright dentro del contenedor, hay que sumarle el
+    // tiempo de arrancar el contenedor y a veces descargar la imagen.
+    containerTimeoutMs: parseInt(
+      process.env.SCRAPER_CONTAINER_TIMEOUT_MS ?? String(parseInt(process.env.PLAYWRIGHT_TIMEOUT_MS ?? '30000', 10) + 15000),
+      10,
+    ),
+    // Red de Docker opcional — útil para forzar que el contenedor salga
+    // por una red interna con el proxy residencial/IP dedicada ya
+    // configurado a nivel de infraestructura, en vez de duplicar esa
+    // config con PLAYWRIGHT_PROXY_* dentro del contenedor.
+    dockerNetwork: process.env.SCRAPER_DOCKER_NETWORK || undefined,
   },
 });

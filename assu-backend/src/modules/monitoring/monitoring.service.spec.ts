@@ -24,6 +24,7 @@ function makeAccount(overrides: Partial<{ lastSyncAt: Date | null; syncEnabled: 
     'merchant-1',
     '3001234567',
     'fp:ct',
+    true, // credentialsReadOnlyConfirmed
     AccountStatus.ACTIVE,
     overrides.syncEnabled ?? true,
     overrides.syncIntervalSeconds ?? 60,

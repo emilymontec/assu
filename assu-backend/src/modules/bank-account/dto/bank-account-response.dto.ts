@@ -15,6 +15,8 @@ export class BankAccountResponseDto {
   @ApiProperty() merchantId!: string;
   @ApiProperty() accountNumber!: string;
   @ApiProperty({ enum: AccountStatus }) status!: AccountStatus;
+  @ApiProperty({ description: 'Autoatestación registrada al crear/rotar la credencial — ver DTO de creación.' })
+  credentialsReadOnlyConfirmed!: boolean;
   @ApiProperty() syncEnabled!: boolean;
   @ApiProperty() syncIntervalSeconds!: number;
   @ApiProperty({ nullable: true, type: Date }) lastSyncAt!: Date | null;
@@ -30,6 +32,7 @@ export class BankAccountResponseDto {
     dto.merchantId = account.merchantId;
     dto.accountNumber = account.accountNumber;
     dto.status = account.status;
+    dto.credentialsReadOnlyConfirmed = account.credentialsReadOnlyConfirmed;
     dto.syncEnabled = account.syncEnabled;
     dto.syncIntervalSeconds = account.syncIntervalSeconds;
     dto.lastSyncAt = account.lastSyncAt;

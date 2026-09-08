@@ -43,6 +43,7 @@ export class BankAccountService {
       merchantId: dto.merchantId,
       accountNumber: dto.accountNumber,
       encryptedCredentials,
+      credentialsReadOnlyConfirmed: dto.confirmedReadOnlyCredentials,
       syncIntervalSeconds: dto.syncIntervalSeconds ?? defaultInterval,
     });
 
@@ -80,7 +81,7 @@ export class BankAccountService {
   async updateCredentials(id: string, dto: UpdateCredentialsDto): Promise<BankAccountWithBankName> {
     await this.findById(id);
     const encryptedCredentials = await this.encryption.encrypt(JSON.stringify(dto.credentials));
-    await this.repository.updateCredentials(id, encryptedCredentials);
+    await this.repository.updateCredentials(id, encryptedCredentials, dto.confirmedReadOnlyCredentials);
     // Nunca se audita el contenido de las credenciales, solo el hecho de que rotaron.
     await this.auditService.logConfigChange('BankAccount', id, 'api', { credentialsRotated: true });
     return this.findById(id);

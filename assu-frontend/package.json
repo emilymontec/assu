@@ -1,8 +1,7 @@
 {
   "name": "assu-frontend",
   "version": "0.1.0",
-  "description": "Assu - Verificación de Movimientos",
-  "author": "emilymontec",
+  "description": "Panel de administración del Collector (módulo Admin/Operations) — Forttu Pagos",
   "private": true,
   "packageManager": "pnpm@9.12.0",
   "engines": {

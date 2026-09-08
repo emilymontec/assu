@@ -23,6 +23,7 @@ function makeAccount(
     'merchant-1',
     '3001234567',
     'fp:ct',
+    true, // credentialsReadOnlyConfirmed
     overrides.status ?? AccountStatus.ACTIVE,
     overrides.syncEnabled ?? true,
     overrides.syncIntervalSeconds ?? 60,

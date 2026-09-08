@@ -143,7 +143,7 @@ export class ReceiptTextParser {
   }
 
   private extractBankName(text: string): string | undefined {
-    const known = ['nequi', 'bancolombia', 'davivienda'];
+    const known = ['nequi', 'bancolombia', 'davivienda', 'daviplata'];
     const lower = text.toLowerCase();
     return known.find((bank) => lower.includes(bank));
   }

@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Min, validateSync } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Min, ValidateIf, validateSync } from 'class-validator';
 
 /** AES-256 requiere una clave de exactamente 32 bytes → 64 caracteres hex. */
 const HEX_256_BIT_KEY = /^[0-9a-fA-F]{64}$/;
@@ -27,6 +27,13 @@ class EnvironmentVariables {
   @IsString()
   REDIS_PASSWORD?: string;
 
+  @IsOptional()
+  @IsIn(['local', 'aws-kms'])
+  ENCRYPTION_PROVIDER?: string;
+
+  // Requerida solo si ENCRYPTION_PROVIDER no es 'aws-kms' (es decir, en el
+  // default 'local' y cuando la variable ni siquiera está presente).
+  @ValidateIf((o) => o.ENCRYPTION_PROVIDER !== 'aws-kms')
   @Matches(HEX_256_BIT_KEY, { message: `CREDENTIALS_ENCRYPTION_KEY ${HEX_KEY_MESSAGE}` })
   CREDENTIALS_ENCRYPTION_KEY!: string;
 
@@ -39,6 +46,32 @@ class EnvironmentVariables {
   @IsOptional()
   @Matches(HEX_256_BIT_KEY, { message: `CREDENTIALS_ENCRYPTION_KEY_PREVIOUS ${HEX_KEY_MESSAGE}` })
   CREDENTIALS_ENCRYPTION_KEY_PREVIOUS?: string;
+
+  @IsOptional()
+  @IsString()
+  AWS_KMS_REGION?: string;
+
+  // Requerida SOLO cuando ENCRYPTION_PROVIDER=aws-kms está activo.
+  @ValidateIf((o) => o.ENCRYPTION_PROVIDER === 'aws-kms')
+  @IsString()
+  AWS_KMS_KEY_ID?: string;
+
+  @IsOptional()
+  @IsIn(['in-process', 'docker'])
+  SCRAPER_ISOLATION_MODE?: string;
+
+  @IsOptional()
+  @IsString()
+  SCRAPER_DOCKER_IMAGE?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1000)
+  SCRAPER_CONTAINER_TIMEOUT_MS?: number;
+
+  @IsOptional()
+  @IsString()
+  SCRAPER_DOCKER_NETWORK?: string;
 
   @IsString()
   INTERNAL_API_KEY!: string;
@@ -61,6 +94,18 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1000)
   PLAYWRIGHT_TIMEOUT_MS!: number;
+
+  @IsOptional()
+  @IsString()
+  PLAYWRIGHT_PROXY_SERVER?: string;
+
+  @IsOptional()
+  @IsString()
+  PLAYWRIGHT_PROXY_USERNAME?: string;
+
+  @IsOptional()
+  @IsString()
+  PLAYWRIGHT_PROXY_PASSWORD?: string;
 
   @IsString()
   LOG_LEVEL!: string;
@@ -104,6 +149,12 @@ export function validateEnv(config: Record<string, unknown>) {
     RATE_LIMIT_MIN_SECONDS_BETWEEN_ACCOUNT_SYNCS: Number(config.RATE_LIMIT_MIN_SECONDS_BETWEEN_ACCOUNT_SYNCS),
     PLAYWRIGHT_TIMEOUT_MS: Number(config.PLAYWRIGHT_TIMEOUT_MS),
     PLAYWRIGHT_HEADLESS: String(config.PLAYWRIGHT_HEADLESS).toLowerCase() === 'true',
+    SCRAPER_CONTAINER_TIMEOUT_MS:
+      config.SCRAPER_CONTAINER_TIMEOUT_MS !== undefined && config.SCRAPER_CONTAINER_TIMEOUT_MS !== ''
+        ? Number(config.SCRAPER_CONTAINER_TIMEOUT_MS)
+        : undefined,
+    SCRAPER_ISOLATION_MODE: config.SCRAPER_ISOLATION_MODE || undefined,
+    ENCRYPTION_PROVIDER: config.ENCRYPTION_PROVIDER || undefined,
   };
 
   const validated = plainToInstance(EnvironmentVariables, normalized, {

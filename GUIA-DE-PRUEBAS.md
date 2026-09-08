@@ -149,12 +149,14 @@ contra el backend, ya que pasa por el mismo API.
 1. Crea un banco (`POST /banks`), una cuenta (`POST /bank-accounts`) y
    verifica que el Scheduler la programe: revisa los logs del backend, o
    `GET /status` para ver cuentas activas.
-2. Como `NequiAdapter` tiene los selectores de Playwright pendientes
-   (Fase 0 del roadmap), la sincronización real contra el portal fallará
-   — es esperado. Para probar el pipeline de todas formas, corre los
-   tests unitarios de `sync-engine` y `movement-*`, que usan mocks:
+2. Como los tres adapters (`NequiAdapter`, `BancolombiaAdapter`,
+   `DaviplataAdapter`) tienen los selectores de Playwright pendientes
+   (Fase 0 del roadmap), la sincronización real contra cualquier portal
+   fallará — es esperado. Para probar el pipeline de todas formas, corre
+   los tests unitarios de los adapters, `sync-engine` y `movement-*`, que
+   usan mocks (ningún navegador ni red real):
    ```bash
-   pnpm test sync-engine movement
+   pnpm test bank-adapter sync-engine movement
    ```
 3. Para ver movimientos ya guardados (si insertas alguno manualmente vía
    Prisma Studio: `pnpm run prisma:studio`), usa:
@@ -287,14 +289,92 @@ pipeline.
 
 ### 5.4 Selectores reales de Nequi (Fase 0)
 
-Esto es lo único de la tabla de la sección 6 que **no** se resuelve
+Esto es lo único de la tabla de la sección 7 que **no** se resuelve
 solo con configuración — requiere que alguien con acceso a una cuenta
 real de Nequi inspeccione el portal. Sigue la guía paso a paso en
 [`docs/fase-0-nequi.md`](./docs/fase-0-nequi.md).
 
 ---
 
-## 6. Qué NO vas a poder probar todavía (y por qué)
+## 6. Probar el endurecimiento de seguridad del scraping
+
+### 6.1 Credenciales de solo lectura (obligatorio)
+
+Desde esta sesión, `POST /bank-accounts` y `PATCH /bank-accounts/:id/credentials`
+exigen `confirmedReadOnlyCredentials: true` en el body — si lo omites o
+lo mandas en `false`, la API responde `400`:
+
+```bash
+curl -X POST http://localhost:3000/bank-accounts \
+  -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
+  -d '{
+    "bankId": "<id de un banco creado antes>",
+    "merchantId": "forttu-demo",
+    "accountNumber": "3001234567",
+    "credentials": {"phone": "3001234567", "pin": "1234"},
+    "confirmedReadOnlyCredentials": true
+  }'
+```
+
+### 6.2 Cifrado con AWS KMS (opcional, requiere una cuenta de AWS)
+
+Por defecto usa AES-256-GCM local (nada que configurar). Para probar
+KMS necesitas una llave de KMS real y credenciales de AWS con permiso
+`kms:Encrypt`/`kms:Decrypt` sobre ella:
+
+```bash
+# en assu-backend/.env
+ENCRYPTION_PROVIDER=aws-kms
+AWS_KMS_REGION=us-east-1
+AWS_KMS_KEY_ID=arn:aws:kms:us-east-1:...:key/...
+# credenciales de AWS: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY o un rol de IAM
+```
+
+Sin esto configurado, `pnpm test src/modules/credentials` ya prueba la
+lógica completa (encrypt/decrypt, manejo de errores) con el cliente de
+KMS mockeado — no necesitas una cuenta de AWS para validar que el
+código está bien.
+
+### 6.3 Proxy dedicado/residencial (opcional)
+
+```bash
+# en assu-backend/.env
+PLAYWRIGHT_PROXY_SERVER=http://tu-proxy.example.com:8000
+PLAYWRIGHT_PROXY_USERNAME=usuario
+PLAYWRIGHT_PROXY_PASSWORD=clave
+```
+
+Verifica que se está usando con el test unitario (no necesitas un
+proxy real corriendo, solo confirma que Playwright recibe la config):
+
+```bash
+pnpm test playwright-adapter.base
+```
+
+### 6.4 Aislamiento en contenedores Docker (opcional, requiere Docker)
+
+```bash
+cd assu-backend
+docker build -f docker/scraper/Dockerfile -t assu-backend-scraper:latest .
+echo "SCRAPER_ISOLATION_MODE=docker" >> .env
+pnpm run start:dev
+```
+
+Con esto activo, cada sync corre `docker run --rm` por dentro — revisa
+`docker ps` durante una sincronización y vas a ver el contenedor
+aparecer y desaparecer. Sin Docker instalado, deja
+`SCRAPER_ISOLATION_MODE=in-process` (default) y todo sigue funcionando
+igual que antes.
+
+Para probar la lógica sin Docker real:
+
+```bash
+pnpm test docker-container-runner docker-isolated
+```
+
+---
+
+## 7. Qué NO vas a poder probar todavía (y por qué)
 
 | Pendiente | Motivo |
 |---|---|
@@ -308,7 +388,7 @@ puede loguearse contra el portal real todavía).
 
 ---
 
-## 7. Checklist rápido de "todo funciona"
+## 8. Checklist rápido de "todo funciona"
 
 - [ ] `docker ps` muestra Postgres y Redis healthy
 - [ ] `pnpm test` (backend) pasa sin fallos
@@ -317,3 +397,5 @@ puede loguearse contra el portal real todavía).
 - [ ] Swagger carga en `http://localhost:3000/docs`
 - [ ] El admin en `http://localhost:3100` muestra los bancos/cuentas creados por curl
 - [ ] `POST /payment-verifications/:id/manual-review` cambia el estado y aparece en `GET /payment-verifications/:id/events`
+- [ ] `POST /bank-accounts` sin `confirmedReadOnlyCredentials: true` responde 400
+- [ ] `pnpm test docker-container-runner docker-isolated` pasa sin fallos

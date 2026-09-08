@@ -7,6 +7,7 @@ export class BankAccount {
     public readonly merchantId: string,
     public accountNumber: string,
     public encryptedCredentials: string,
+    public credentialsReadOnlyConfirmed: boolean,
     public status: AccountStatus,
     public syncEnabled: boolean,
     public syncIntervalSeconds: number,

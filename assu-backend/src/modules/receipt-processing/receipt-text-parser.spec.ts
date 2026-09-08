@@ -49,6 +49,7 @@ describe('ReceiptTextParser', () => {
   it('reconoce el nombre del banco por variantes de mayúsculas', () => {
     expect(parser.parse('BANCOLOMBIA - Comprobante').data.bankName).toBe('bancolombia');
     expect(parser.parse('Davivienda te informa').data.bankName).toBe('davivienda');
+    expect(parser.parse('Comprobante Daviplata').data.bankName).toBe('daviplata');
   });
 
   it('devuelve LOW confidence y campos undefined cuando el texto no trae nada reconocible', () => {

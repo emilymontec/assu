@@ -50,10 +50,46 @@ describe('AdapterFactoryService', () => {
     expect(first).not.toBe(second);
   });
 
+  it('propaga la configuración de proxy cuando está definida (IP dedicada/residencial)', () => {
+    const registry = new AdapterRegistryService();
+    registry.register('nequi', FakeAdapter);
+    const proxy = { server: 'http://proxy.example.com:8000', username: 'user', password: 'pass' };
+    const configService = makeConfigService({ 'playwright.proxy': proxy });
+    const factory = new AdapterFactoryService(registry, configService);
+
+    const adapter = factory.create('nequi') as unknown as FakeAdapter;
+
+    expect((adapter.options as { proxy?: unknown }).proxy).toEqual(proxy);
+  });
+
   it('propaga el error de adapterKey desconocido', () => {
     const registry = new AdapterRegistryService();
     const factory = new AdapterFactoryService(registry, makeConfigService({}));
 
     expect(() => factory.create('desconocido')).toThrow(/no hay ningún adapter registrado/i);
+  });
+
+  it('en modo docker devuelve un DockerIsolatedAdapter en vez de instanciar la clase real', () => {
+    const registry = new AdapterRegistryService();
+    registry.register('nequi', FakeAdapter);
+    const configService = makeConfigService({
+      'scraperIsolation.mode': 'docker',
+      'scraperIsolation.dockerImage': 'assu-backend-scraper:latest',
+      'scraperIsolation.containerTimeoutMs': 45000,
+    });
+    const factory = new AdapterFactoryService(registry, configService);
+
+    const adapter = factory.create('nequi');
+
+    expect(adapter).not.toBeInstanceOf(FakeAdapter);
+    expect(adapter.constructor.name).toBe('DockerIsolatedAdapter');
+  });
+
+  it('en modo docker SÍ valida que el adapterKey exista antes de devolver el proxy', () => {
+    const registry = new AdapterRegistryService(); // nada registrado
+    const configService = makeConfigService({ 'scraperIsolation.mode': 'docker' });
+    const factory = new AdapterFactoryService(registry, configService);
+
+    expect(() => factory.create('banco-inexistente')).toThrow(/no hay ningún adapter registrado/i);
   });
 });

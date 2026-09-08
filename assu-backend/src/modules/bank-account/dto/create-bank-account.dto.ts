@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsNotEmptyObject, IsObject, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { Equals, IsInt, IsNotEmpty, IsNotEmptyObject, IsObject, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateBankAccountDto {
   @ApiProperty({ description: 'id del Bank ya registrado en Bank Management' })
@@ -40,4 +40,15 @@ export class CreateBankAccountDto {
   @IsObject()
   @IsNotEmptyObject()
   credentials!: Record<string, string>;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Debe ser `true`: confirma que esta credencial corresponde a un rol de "solo consulta" del banco ' +
+      '(sin permisos de transferencia/retiro), NO la credencial principal de la cuenta. El sistema no puede ' +
+      'verificar esto contra el banco — es una responsabilidad de quien registra la cuenta. La mayoría de ' +
+      'bancos corporativos/pyme permiten crear un usuario auxiliar de solo consulta; usa ese, no el principal.',
+  })
+  @Equals(true, { message: 'confirmedReadOnlyCredentials debe ser true: usa una credencial de solo consulta, no la principal' })
+  confirmedReadOnlyCredentials!: boolean;
 }

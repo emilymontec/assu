@@ -49,6 +49,16 @@ model BankAccount {
   merchantId            String        @map("merchant_id")
   accountNumber         String        @map("account_number")
   encryptedCredentials  String        @map("encrypted_credentials") @db.Text
+  // Autoatestación de quien registró la cuenta: "esta credencial es de
+  // solo consulta, sin permisos de transferencia/retiro". El sistema NO
+  // puede verificar esto contra el banco (eso lo decide el banco al
+  // crear el usuario/rol) — es una responsabilidad del operador, no una
+  // garantía criptográfica. La garantía real, estructural, es que
+  // `CollectorAdapter` (ver core/ports/collector-adapter.interface.ts)
+  // solo expone login()/sync()/logout() — no existe ningún método de
+  // transferencia en ningún adapter, así que aunque la credencial SÍ
+  // tuviera permisos de escritura, el código no tiene cómo usarlos.
+  credentialsReadOnlyConfirmed Boolean @default(false) @map("credentials_read_only_confirmed")
   status                AccountStatus @default(PENDING)
   syncEnabled           Boolean       @default(true) @map("sync_enabled")
   syncIntervalSeconds   Int           @default(60) @map("sync_interval_seconds")

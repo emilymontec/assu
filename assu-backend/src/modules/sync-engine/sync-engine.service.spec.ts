@@ -33,6 +33,7 @@ function makeAccount(lastMovementReference: string | null = null): BankAccount {
     'merchant-1',
     '3001234567',
     'fp:ct',
+    true, // credentialsReadOnlyConfirmed
     AccountStatus.ACTIVE,
     true,
     60,

@@ -33,6 +33,7 @@ function makeAccount(
     'merchant-1',
     '3001234567',
     'fp:ciphertext-no-deberia-salir-nunca',
+    true,
     overrides.status ?? AccountStatus.ACTIVE,
     overrides.syncEnabled ?? true,
     overrides.syncIntervalSeconds ?? 60,
@@ -79,7 +80,7 @@ describe('BankAccountService', () => {
     const service = buildService();
 
     await expect(
-      service.create({ bankId: 'bank-1', merchantId: 'm1', accountNumber: '123', credentials: { u: 'a' } }),
+      service.create({ bankId: 'bank-1', merchantId: 'm1', accountNumber: '123', credentials: { u: 'a' }, confirmedReadOnlyCredentials: true }),
     ).rejects.toThrow(ConflictException);
     expect(repository.create).not.toHaveBeenCalled();
   });
@@ -95,6 +96,7 @@ describe('BankAccountService', () => {
       merchantId: 'm1',
       accountNumber: '123',
       credentials: { u: 'a', p: 'b' },
+      confirmedReadOnlyCredentials: true,
     });
 
     expect(encryption.encrypt).toHaveBeenCalledWith(JSON.stringify({ u: 'a', p: 'b' }));
@@ -114,7 +116,7 @@ describe('BankAccountService', () => {
     configService.get.mockReturnValue(90);
     const service = buildService();
 
-    await service.create({ bankId: 'bank-1', merchantId: 'm1', accountNumber: '123', credentials: { u: 'a' } });
+    await service.create({ bankId: 'bank-1', merchantId: 'm1', accountNumber: '123', credentials: { u: 'a' }, confirmedReadOnlyCredentials: true });
 
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ syncIntervalSeconds: 90 }));
   });
@@ -131,6 +133,7 @@ describe('BankAccountService', () => {
       merchantId: 'm1',
       accountNumber: '123',
       credentials: { u: 'a' },
+      confirmedReadOnlyCredentials: true,
       syncIntervalSeconds: 30,
     });
 
@@ -219,9 +222,9 @@ describe('BankAccountService', () => {
     encryption.encrypt.mockResolvedValue('fp2:nuevo-ciphertext');
     const service = buildService();
 
-    const result = await service.updateCredentials('acc-1', { credentials: { u: 'nuevo' } });
+    const result = await service.updateCredentials('acc-1', { credentials: { u: 'nuevo' }, confirmedReadOnlyCredentials: true });
 
-    expect(repository.updateCredentials).toHaveBeenCalledWith('acc-1', 'fp2:nuevo-ciphertext');
+    expect(repository.updateCredentials).toHaveBeenCalledWith('acc-1', 'fp2:nuevo-ciphertext', true);
     expect(result.account.status).toBe(AccountStatus.PENDING);
     expect(auditService.logConfigChange).toHaveBeenCalledWith('BankAccount', 'acc-1', 'api', {
       credentialsRotated: true,

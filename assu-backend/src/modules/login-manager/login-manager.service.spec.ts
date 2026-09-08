@@ -32,6 +32,7 @@ function makeAccount(overrides: Partial<{ status: AccountStatus }> = {}): BankAc
     'merchant-1',
     '3001234567',
     'fp:ciphertext',
+    true, // credentialsReadOnlyConfirmed
     overrides.status ?? AccountStatus.ACTIVE,
     true,
     60,

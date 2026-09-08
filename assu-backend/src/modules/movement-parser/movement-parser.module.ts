@@ -2,6 +2,8 @@ import { Module, OnModuleInit } from '@nestjs/common';
 import { MovementParserRegistryService } from './movement-parser-registry.service';
 import { MovementParserService } from './movement-parser.service';
 import { parseNequiMovement } from './parsers/nequi.parser';
+import { parseBancolombiaMovement } from './parsers/bancolombia.parser';
+import { parseDaviplataMovement } from './parsers/daviplata.parser';
 
 @Module({
   providers: [MovementParserRegistryService, MovementParserService],
@@ -14,5 +16,7 @@ export class MovementParserModule implements OnModuleInit {
     // Para agregar un banco nuevo: crear su parser en parsers/<banco>.parser.ts
     // y registrar una línea aquí con el mismo adapterKey usado en Bank Management.
     this.registry.register('nequi', parseNequiMovement);
+    this.registry.register('bancolombia', parseBancolombiaMovement);
+    this.registry.register('daviplata', parseDaviplataMovement);
   }
 }

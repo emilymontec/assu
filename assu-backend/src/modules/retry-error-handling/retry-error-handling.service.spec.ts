@@ -22,6 +22,7 @@ function makeAccount(status: AccountStatus): BankAccount {
     'merchant-1',
     '3001234567',
     'fp:ct',
+    true, // credentialsReadOnlyConfirmed
     status,
     true,
     60,
