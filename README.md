@@ -3,7 +3,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/readme_assets/assu.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/readme_assets/assu.svg">
-  <img alt="Assu" src="docs/readme_assets/assu.svg" width="300">
+  <img alt="Assu" src="docs/readme_assets/assu.svg" width="250">
 </picture>
 
 <p align="center">
@@ -35,7 +35,7 @@ Assu is two cooperating services:
 
 | | |
 |---|---|
-| **Movement Detection** | Logs into Nequi, Bancolombia, and Davivienda (via Playwright — no official open banking API exists for this), pulls new movements, normalizes and deduplicates them. |
+| **Movement Detection** | Logs into Nequi, Bancolombia, and Daviplata (via Playwright — no official open banking API exists for this), pulls new movements, normalizes and deduplicates them. |
 | **Receipt Verification** | Receives receipts over WhatsApp, runs OCR, and reconciles the extracted amount/reference/time against real bank movements. |
 | **Reconciliation Engine** | Deterministic scoring (reference + amount + time window) → `EXACT_MATCH`, `PROBABLE_MATCH`, `AMBIGUOUS_MATCH`, `NO_MATCH`, or `PENDING`. No ML, no guessing. |
 | **Audited State Machine** | `RECEIVED → PROCESSING → PENDING_MOVEMENT → MATCHING → VERIFIED/REJECTED/AMBIGUOUS/ERROR/MANUAL_REVIEW`. Every transition is logged with an actor and a reason. |
@@ -89,7 +89,7 @@ Bank-specific logic is fully isolated behind a `CollectorAdapter` port (`login()
            │                                            │
            ▼                                            ▼
    Receipt Ingestion                            Bank Adapter System
-   (idempotent, signed session)                 (login → sync → logout)
+   (idempotent intake)                    (login → sync → logout, isolatable)
            │                                            │
            ▼                                            ▼
    Receipt Processing                              Sync Engine
@@ -147,7 +147,7 @@ cp .env.example .env       # set INTERNAL_API_KEY, OCR_PROVIDER, OPENWA_* as nee
 pnpm run prisma:generate
 pnpm run prisma:migrate:dev
 
-pnpm test                  # 199 tests
+pnpm test                  # 254 tests
 pnpm run start:dev         # API on :3000, docs on :3000/docs
 ```
 
@@ -155,11 +155,11 @@ pnpm run start:dev         # API on :3000, docs on :3000/docs
 
 | Area | What it does |
 |---|---|
-| `bank`, `bank-account`, `bank-adapter` | Bank registry, connected accounts, pluggable `CollectorAdapter` per bank |
+| `bank`, `bank-account`, `bank-adapter` | Bank registry, connected accounts, pluggable `CollectorAdapter` per bank — optional dedicated/residential proxy, optional disposable Docker container per scrape |
 | `session-manager`, `login-manager` | Cookie/token lifecycle, re-auth detection |
 | `scheduler`, `queue` | Per-account sync frequency, BullMQ jobs with backoff |
 | `sync-engine`, `movement-parser`, `movement-validator`, `movement-deduplication` | The detect → normalize → validate → dedupe → store pipeline |
-| `credentials`, `audit`, `rate-limiting` | AES-256-GCM encrypted credentials, full audit trail, per-bank throttling |
+| `credentials`, `audit`, `rate-limiting` | Credentials encrypted with AES-256-GCM (or AWS KMS) and a mandatory read-only attestation, full audit trail, per-bank throttling |
 | `receipt-ingestion` | WhatsApp receipt intake via open-wa |
 | `receipt-processing` | File validation, hashing, OCR (`NullOcrAdapter` placeholder or real `TesseractOcrAdapter`) |
 | `reconciliation-engine` | Deterministic receipt-to-movement matching |
@@ -206,8 +206,9 @@ The browser never sees `ASSU_BACKEND_API_KEY`. Every request goes to a relative 
 
 | Gap | Why |
 |---|---|
-| Live Nequi scraping | `NequiAdapter`'s selectors are placeholders — needs a real account inspected with `playwright codegen`. See [`docs/#`]("./docs/#"). |
+| Live bank scraping | `NequiAdapter`, `BancolombiaAdapter`, and `DaviplataAdapter` all have placeholder selectors — each needs a real account inspected with `playwright codegen`. Same methodology for all three, documented once. See [`docs/#`]("./docs/#"). |
 | Cloud OCR fallback | `TesseractOcrAdapter` is real and free, but there's no Google Vision/Textract adapter yet for higher-accuracy production use. |
+| Docker-isolated scraping, verified end-to-end | `DockerIsolatedAdapter` and the container entrypoint are implemented and unit-tested, but the image itself hasn't been built or run against a real bank yet. |
 
 Everything else in the diagram above is implemented and tested — the reconciliation engine, the state machine, WhatsApp ingestion, and the admin panel all run end-to-end against a real database and queue.
 
@@ -221,6 +222,28 @@ Everything else in the diagram above is implemented and tested — the reconcili
 - [Administrator Panel](./docs/#)
 
 ---
+
+## Author
+
+**Emily Monterrosa Castro - Full Stack Developer** <br>
+[GitHub](https://github.com/emilymontec) · [LinkedIn](https://www.linkedin.com/in/emilymontec/) · [Portfolio](https://emilymontec.github.io/portfolio/)
+
+---
+
+## License
+
+Apache License 2.0
+
+See the [LICENSE](LICENSE) file for additional information.
+
+---
+
+<!--
+## Appendices
+See the [UserGuide](docs/MANUAL%20USUARIO%20KEISY%20MEDICAL.pdf) to learn more.
+
+If you want to know more about the system, please check the [Documentation](docs/DOCUMENTACION%20TECNICA%20KEISY%20MEDICAL.pdf).
+-->
 
 </div>
 
