@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum BankStatus {
@@ -249,13 +250,11 @@ enum AuditResult {
   FAILURE
 }
 
-/**
- * Registro append-only de operaciones sensibles del sistema. No tiene
- * relación (FK) con Bank/BankAccount a propósito: si la cuenta se borra
- * algún día, el rastro de auditoría debe sobrevivir intacto para
- * investigación de incidentes (por eso `entityId` es un String suelto,
- * no una FK con cascade).
- */
+/// Registro append-only de operaciones sensibles del sistema. No tiene
+/// relación (FK) con Bank/BankAccount a propósito: si la cuenta se borra
+/// algún día, el rastro de auditoría debe sobrevivir intacto para
+/// investigación de incidentes (por eso `entityId` es un String suelto,
+/// no una FK con cascade).
 model AuditLog {
   id           String      @id @default(uuid())
   action       AuditAction
@@ -284,11 +283,9 @@ enum AlertSeverity {
   CRITICAL
 }
 
-/**
- * Igual que AuditLog: append-only y sin FK a propósito, para que la
- * alerta sobreviva como evidencia aunque la cuenta/banco se borre
- * después.
- */
+/// Igual que AuditLog: append-only y sin FK a propósito, para que la
+/// alerta sobreviva como evidencia aunque la cuenta/banco se borre
+/// después.
 model AlertLog {
   id         String        @id @default(uuid())
   type       AlertType
