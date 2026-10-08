@@ -79,6 +79,6 @@ export class OpenWaClientService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.client?.kill('Collector shutting down');
+    await (this.client as any)?.kill('Collector shutting down');
   }
 }
