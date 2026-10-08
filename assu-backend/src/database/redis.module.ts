@@ -21,6 +21,7 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
           host: configService.get<string>('redis.host'),
           port: configService.get<number>('redis.port'),
           password: configService.get<string>('redis.password'),
+          tls: configService.get<string>('redis.host')?.includes('upstash') ? {} : undefined,
         }),
       inject: [ConfigService],
     },

@@ -68,6 +68,7 @@ import { ReceiptIngestionModule } from './modules/receipt-ingestion/receipt-inge
           host: configService.get<string>('redis.host'),
           port: configService.get<number>('redis.port'),
           password: configService.get<string>('redis.password'),
+          tls: configService.get<string>('redis.host')?.includes('upstash') ? {} : undefined,
         },
       }),
       inject: [ConfigService],
