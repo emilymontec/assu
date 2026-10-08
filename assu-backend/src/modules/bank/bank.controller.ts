@@ -15,7 +15,7 @@ export class BankController {
   constructor(private readonly bankService: BankService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Registrar un nuevo banco soportado por el Collector' })
+  @ApiOperation({ summary: 'Registrar un nuevo banco soportado por el Assu' })
   async create(@Body() dto: CreateBankDto): Promise<BankResponseDto> {
     const bank = await this.bankService.create(dto);
     return BankResponseDto.fromDomain(bank);

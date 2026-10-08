@@ -15,7 +15,7 @@ export class ManualReviewDto {
   @MinLength(5)
   reason!: string;
 
-  @ApiProperty({ description: 'Identificador del operador humano, ej. "operaciones@forttu.co"' })
+  @ApiProperty({ description: 'Identificador del operador humano, ej. "operaciones@assu.app"' })
   @IsString()
   @IsNotEmpty()
   actor!: string;

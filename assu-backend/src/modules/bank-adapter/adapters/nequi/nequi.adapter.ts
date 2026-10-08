@@ -1,4 +1,4 @@
-import { BankCredentials } from '../../../../core/ports/collector-adapter.interface';
+import { BankCredentials } from '../../../../core/ports/bank-adapter.interface';
 import { RawMovement } from '../../../../core/domain/movement/movement.entity';
 import { PlaywrightAdapterBase, PlaywrightAdapterOptions } from '../../../../core/base/playwright-adapter.base';
 import { InvalidCredentialsError, PortalStructureChangedError } from '../../../../common/errors/permanent.error';
@@ -7,7 +7,7 @@ import { InvalidCredentialsError, PortalStructureChangedError } from '../../../.
  * ⚠️ SELECTORES Y URLS PLACEHOLDER — NO DESPLEGAR TAL CUAL A PRODUCCIÓN.
  *
  * La Fase 0 del roadmap (investigación por banco) para Nequi todavía no
- * se ha hecho — ver Roadmap-Collector-Checklist.md. Antes de usar este
+ * se ha hecho — ver docs/fase-0-nequi.md. Antes de usar este
  * adapter contra el portal real hace falta:
  *
  *   1. Abrir el portal/app real de Nequi con las DevTools abiertas y
@@ -23,7 +23,7 @@ import { InvalidCredentialsError, PortalStructureChangedError } from '../../../.
  * de evidencia ante fallos. Un desarrollador solo necesita reemplazar
  * las constantes de abajo tras inspeccionar el portal real.
  */
-const NEQUI_LOGIN_URL = 'https://www.nequi.com.co/login'; // TODO: confirmar URL real
+const NEQUI_LOGIN_URL = 'https://transacciones.nequi.com/bdigital/login.jsp';
 const NEQUI_MOVEMENTS_URL = 'https://www.nequi.com.co/movimientos'; // TODO: confirmar URL real
 
 const SELECTORS = {

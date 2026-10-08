@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdapterRegistryService } from './adapter-registry.service';
-import { CollectorAdapter } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter } from '../../core/ports/bank-adapter.interface';
 import { PlaywrightAdapterOptions, PlaywrightProxyOptions } from '../../core/base/playwright-adapter.base';
 import { DockerIsolatedAdapter } from './adapters/docker-isolated.adapter';
 
@@ -19,10 +19,10 @@ export class AdapterFactoryService {
    * nunca debe ser un singleton compartido entre cuentas o entre syncs.
    *
    * `LoginManagerService`/`SyncEngineService` reciben siempre un
-   * `CollectorAdapter` — no saben ni les importa si por debajo corre
+   * `BankAdapter` — no saben ni les importa si por debajo corre
    * Playwright en este proceso o en un contenedor Docker desechable.
    */
-  create(adapterKey: string): CollectorAdapter {
+  create(adapterKey: string): BankAdapter {
     // Se valida igual en ambos modos: si el banco no está registrado,
     // el error debe ser el mismo sin importar dónde vaya a correr.
     const AdapterCtor = this.registry.resolve(adapterKey);

@@ -23,7 +23,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Assu Backend — Forttu Pagos')
+    .setTitle('Assu Backend')
     .setDescription(
       'Microservicio de adquisición de movimientos bancarios. ' +
         'No consume APIs oficiales de open banking: obtiene la información ' +
@@ -38,7 +38,7 @@ async function bootstrap() {
   const port = configService.get<number>('app.port') ?? 3000;
   await app.listen(port);
   // eslint-disable-next-line no-console
-  console.log(`Collector escuchando en http://localhost:${port} — docs en /docs`);
+  console.log(`Assu escuchando en http://localhost:${port} — docs en /docs`);
 }
 
 bootstrap();

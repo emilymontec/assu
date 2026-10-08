@@ -10,8 +10,8 @@ describe('MetricsService', () => {
 
     const output = await service.getMetrics();
 
-    expect(output).toContain('# HELP collector_syncs_total');
-    expect(output).toContain('# TYPE collector_syncs_total counter');
+    expect(output).toContain('# HELP assu_syncs_total');
+    expect(output).toContain('# TYPE assu_syncs_total counter');
   });
 
   it('getContentType() devuelve el content-type que espera Prometheus', () => {
@@ -26,9 +26,9 @@ describe('MetricsService', () => {
       service.recordSync('nequi', 'SUCCESS', 2500);
 
       const output = await service.getMetrics();
-      expect(output).toMatch(/collector_syncs_total\{.*bank="nequi".*status="SUCCESS".*\} 1/);
+      expect(output).toMatch(/assu_syncs_total\{.*bank="nequi".*status="SUCCESS".*\} 1/);
       // El histograma se expresa en segundos, no en milisegundos.
-      expect(output).toContain('collector_sync_duration_seconds_sum{bank="nequi",status="SUCCESS"} 2.5');
+      expect(output).toContain('assu_sync_duration_seconds_sum{bank="nequi",status="SUCCESS"} 2.5');
     });
   });
 
@@ -39,7 +39,7 @@ describe('MetricsService', () => {
       service.recordMovementsSaved('nequi', 3);
 
       const output = await service.getMetrics();
-      expect(output).toMatch(/collector_movements_saved_total\{bank="nequi"\} 3/);
+      expect(output).toMatch(/assu_movements_saved_total\{bank="nequi"\} 3/);
     });
 
     it('no incrementa el contador si count es 0 (evita series de tiempo vacías innecesarias)', async () => {
@@ -48,7 +48,7 @@ describe('MetricsService', () => {
       service.recordMovementsSaved('nequi', 0);
 
       const output = await service.getMetrics();
-      expect(output).not.toContain('collector_movements_saved_total{bank="nequi"}');
+      expect(output).not.toContain('assu_movements_saved_total{bank="nequi"}');
     });
   });
 
@@ -59,7 +59,7 @@ describe('MetricsService', () => {
       service.recordSyncError('nequi', 'TransientError');
 
       const output = await service.getMetrics();
-      expect(output).toMatch(/collector_sync_errors_total\{.*bank="nequi".*errorType="TransientError".*\} 1/);
+      expect(output).toMatch(/assu_sync_errors_total\{.*bank="nequi".*errorType="TransientError".*\} 1/);
     });
   });
 
@@ -71,7 +71,7 @@ describe('MetricsService', () => {
       service.recordRetry();
 
       const output = await service.getMetrics();
-      expect(output).toContain('collector_retries_total 2');
+      expect(output).toContain('assu_retries_total 2');
     });
   });
 
@@ -83,7 +83,7 @@ describe('MetricsService', () => {
       service.recordSessionExpired();
 
       const output = await service.getMetrics();
-      expect(output).toContain('collector_expired_sessions_total 2');
+      expect(output).toContain('assu_expired_sessions_total 2');
     });
   });
 });

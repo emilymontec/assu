@@ -27,7 +27,7 @@ export default function MovementsPage() {
     <>
       <PageHeader
         title="Movimientos"
-        description="Movimientos bancarios detectados, normalizados y validados por el Collector."
+        description="Movimientos bancarios detectados, normalizados y validados por Assu."
       />
 
       {notImplemented && <NotImplementedYet endpoint="GET /movements" module="Movement Management" />}

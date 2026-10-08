@@ -45,7 +45,7 @@ Reglas:
 - [x] **Retry & Error Handling** — clasifica errores (transitorio/permanente), `UnrecoverableError` para no reintentar lo permanente, escala cuentas a `ERROR` tras 5 fallos seguidos. 8 tests unitarios.
 - [x] **Rate Limiting** — contador de ventana fija sobre Redis, límite por banco y por cuenta, chequeado antes de intentar login. 10 tests unitarios.
 - [ ] Audit (siguiente)
-- [ ] resto de módulos — ver `Roadmap-Collector-Checklist.md`
+- [ ] resto de módulos — ver el backlog interno de Assu
 
 ## Verificación de comprobantes (Payment Verification) — nuevo
 
@@ -53,17 +53,18 @@ Módulo agregado a pedido explícito, fuera de los 23 módulos originales de
 detección de movimientos. Vive en cinco módulos separados, todos bajo
 `src/modules/`:
 
-- **`open-wa-client`** — dueño exclusivo del cliente de
-  [open-wa](https://github.com/open-wa/wa-automate-nodejs) (WhatsApp Web
-  automatizado). Módulo "hoja" sin dependencias del resto del sistema,
+- **`telegram-client`** — dueño exclusivo del bot de
+  [Telegraf](https://telegraf.js.org) sobre la Bot API oficial de
+  Telegram (gratis, sin límite de mensajes, sin riesgo de bloqueo por
+  automatización). Módulo "hoja" sin dependencias del resto del sistema,
   para que tanto `receipt-ingestion` (recibir) como `payment-verification`
   (responder) puedan usarlo sin depender uno del otro.
 - **`receipt-ingestion`** — se suscribe a los mensajes entrantes vía
-  `OpenWaClientService`, descarga y valida el adjunto, y crea el
+  `TelegramClientService`, descarga y valida el adjunto, y crea el
   `PaymentSubmission` de forma idempotente. No expone ningún webhook
-  HTTP — a diferencia de WhatsApp Cloud API, aquí no hay nada externo
-  que pueda "llamar" a un endpoint público, porque no existe: el propio
-  proceso de Collector es el cliente de WhatsApp.
+  HTTP — el bot usa long-polling, así que no hay nada externo que pueda
+  "llamar" a un endpoint público, porque no existe: el propio proceso
+  de Assu es el cliente de Telegram.
 - **`receipt-processing`** — validación de archivo, hash sha256,
   `OcrPort` (`NullOcrAdapter` por defecto — placeholder honesto, siempre
   confianza `LOW`; o `TesseractOcrAdapter` con `OCR_PROVIDER=tesseract`,
@@ -107,12 +108,11 @@ Mientras no se active, `NullOcrAdapter` (el default) manda todo a
 **Selectores reales de Nequi**: ver `docs/fase-0-nequi.md` — es trabajo
 que requiere una cuenta real de Nequi y no se puede completar sin eso.
 
-**WhatsApp (open-wa)**: la primera vez que arranques con
-`OPENWA_HEADLESS=false` vas a tener que escanear un QR con el WhatsApp
-de la cuenta que uses para el demo — la sesión queda guardada en disco
-y no hace falta repetirlo en arranques siguientes. `OPENWA_BANK_ACCOUNT_ID`
-es obligatorio para que la ingesta funcione: a diferencia de WhatsApp
-Cloud API (donde la URL del webhook indicaba la cuenta), open-wa
-controla un solo número por sesión, así que todo comprobante que llegue
-se asocia a esa única cuenta bancaria configurada.
+**Telegram**: crea el bot una sola vez vía [@BotFather](https://t.me/BotFather)
+(`/newbot`) y pega el token en `TELEGRAM_BOT_TOKEN` — no hay QR ni
+sesión de navegador que mantener viva. `TELEGRAM_BANK_ACCOUNT_ID` es
+obligatorio para que la ingesta funcione: el bot recibe mensajes de
+cualquier chat, así que todo comprobante que llegue se asocia a esa
+única cuenta bancaria configurada (un bot por comercio/cuenta si se
+necesitan varias).
 

@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CollectorAdapter } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter } from '../../core/ports/bank-adapter.interface';
 import { PlaywrightAdapterOptions } from '../../core/base/playwright-adapter.base';
 
-export type AdapterConstructor = new (options: PlaywrightAdapterOptions) => CollectorAdapter;
+export type AdapterConstructor = new (options: PlaywrightAdapterOptions) => BankAdapter;
 
 /**
  * El único lugar del sistema donde se traduce `bank.adapterKey` (un

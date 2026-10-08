@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
-import { BankStatus, CollectorType } from '../../core/domain/bank/bank-status.enum';
+import { BankStatus, IntegrationType } from '../../core/domain/bank/bank-status.enum';
 import { Bank } from '../../core/domain/bank/bank.entity';
 import { BankAccount } from '../../core/domain/bank-account/bank-account.entity';
 
@@ -21,7 +21,7 @@ jest.mock('../bank/bank.service', () => ({ BankService: class {} }));
 import { BankAccountService } from './bank-account.service';
 
 function makeBank(status: BankStatus = BankStatus.ACTIVE): Bank {
-  return new Bank('bank-1', 'Nequi', 'CO', status, CollectorType.WEB_SCRAPING, 'nequi', new Date(), new Date());
+  return new Bank('bank-1', 'Nequi', 'CO', status, IntegrationType.WEB_SCRAPING, 'nequi', new Date(), new Date());
 }
 
 function makeAccount(

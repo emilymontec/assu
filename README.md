@@ -29,17 +29,17 @@
 
 <div align="justify">
 
-A customer sends a screenshot or PDF of a transfer over WhatsApp. Assu reads it, checks whether a matching movement actually happened in the bank account, and tells the merchant whether the payment is verified — without a human having to open a bank app and eyeball a list of transactions.
+A customer sends a screenshot or PDF of a transfer over Telegram. Assu reads it, checks whether a matching movement actually happened in the bank account, and tells the merchant whether the payment is verified — without a human having to open a bank app and eyeball a list of transactions.
 
 Assu is two cooperating services:
 
 | | |
 |---|---|
 | **Movement Detection** | Logs into Nequi, Bancolombia, and Daviplata (via Playwright — no official open banking API exists for this), pulls new movements, normalizes and deduplicates them. |
-| **Receipt Verification** | Receives receipts over WhatsApp, runs OCR, and reconciles the extracted amount/reference/time against real bank movements. |
+| **Receipt Verification** | Receives receipts over Telegram, runs OCR, and reconciles the extracted amount/reference/time against real bank movements. |
 | **Reconciliation Engine** | Deterministic scoring (reference + amount + time window) → `EXACT_MATCH`, `PROBABLE_MATCH`, `AMBIGUOUS_MATCH`, `NO_MATCH`, or `PENDING`. No ML, no guessing. |
 | **Audited State Machine** | `RECEIVED → PROCESSING → PENDING_MOVEMENT → MATCHING → VERIFIED/REJECTED/AMBIGUOUS/ERROR/MANUAL_REVIEW`. Every transition is logged with an actor and a reason. |
-| **WhatsApp Ingestion** | Built on [open-wa](https://github.com/open-wa/wa-automate-nodejs) — no Meta Business account required, just a QR scan. |
+| **Telegram Ingestion** | Built on [Telegraf](https://telegraf.js.org) and the official Telegram Bot API — free, no message limits, no ban risk from unofficial automation (the reason open-wa/WhatsApp Web automation was dropped). |
 | **Administrator Panel** | Next.js ops dashboard: banks, accounts, movements, sync history, monitoring. |
 
 ---
@@ -72,7 +72,7 @@ A Next.js panel that consumes the backend's Internal API — view accounts, forc
 
 <h3> I'm adding a new bank</h3>
 
-Bank-specific logic is fully isolated behind a `CollectorAdapter` port (`login()`, `sync()`, `logout()`) — no core code changes needed for a new integration.
+Bank-specific logic is fully isolated behind a `BankAdapter` port (`login()`, `sync()`, `logout()`) — no core code changes needed for a new integration.
 
 **[→ Jump to architecture](#how-it-works)**
 
@@ -85,7 +85,7 @@ Bank-specific logic is fully isolated behind a `CollectorAdapter` port (`login()
 ## How it works
 
 ```text
-   WhatsApp (open-wa)                         Bank portals (Playwright)
+   Telegram (Bot API)                         Bank portals (Playwright)
            │                                            │
            ▼                                            ▼
    Receipt Ingestion                            Bank Adapter System
@@ -155,12 +155,12 @@ pnpm run start:dev         # API on :3000, docs on :3000/docs
 
 | Area | What it does |
 |---|---|
-| `bank`, `bank-account`, `bank-adapter` | Bank registry, connected accounts, pluggable `CollectorAdapter` per bank — optional dedicated/residential proxy, optional disposable Docker container per scrape |
+| `bank`, `bank-account`, `bank-adapter` | Bank registry, connected accounts, pluggable `BankAdapter` per bank — optional dedicated/residential proxy, optional disposable Docker container per scrape |
 | `session-manager`, `login-manager` | Cookie/token lifecycle, re-auth detection |
 | `scheduler`, `queue` | Per-account sync frequency, BullMQ jobs with backoff |
 | `sync-engine`, `movement-parser`, `movement-validator`, `movement-deduplication` | The detect → normalize → validate → dedupe → store pipeline |
 | `credentials`, `audit`, `rate-limiting` | Credentials encrypted with AES-256-GCM (or AWS KMS) and a mandatory read-only attestation, full audit trail, per-bank throttling |
-| `receipt-ingestion` | WhatsApp receipt intake via open-wa |
+| `receipt-ingestion` | Telegram receipt intake via Telegraf |
 | `receipt-processing` | File validation, hashing, OCR (`NullOcrAdapter` placeholder or real `TesseractOcrAdapter`) |
 | `reconciliation-engine` | Deterministic receipt-to-movement matching |
 | `payment-verification` | The audited state machine + manual review endpoint |
@@ -168,7 +168,7 @@ pnpm run start:dev         # API on :3000, docs on :3000/docs
 
 <div align="center">
 <sub>
-Full walkthrough (infra, smoke tests, WhatsApp/OCR setup, checklists) → TEST GUIDE in docs/.
+Full walkthrough (infra, smoke tests, Telegram/OCR setup, checklists) → TEST GUIDE in docs/.
 </sub>
 </div>
 
@@ -210,7 +210,7 @@ The browser never sees `ASSU_BACKEND_API_KEY`. Every request goes to a relative 
 | Cloud OCR fallback | `TesseractOcrAdapter` is real and free, but there's no Google Vision/Textract adapter yet for higher-accuracy production use. |
 | Docker-isolated scraping, verified end-to-end | `DockerIsolatedAdapter` and the container entrypoint are implemented and unit-tested, but the image itself hasn't been built or run against a real bank yet. |
 
-Everything else in the diagram above is implemented and tested — the reconciliation engine, the state machine, WhatsApp ingestion, and the admin panel all run end-to-end against a real database and queue.
+Everything else in the diagram above is implemented and tested — the reconciliation engine, the state machine, Telegram ingestion, and the admin panel all run end-to-end against a real database and queue.
 
 ---
 

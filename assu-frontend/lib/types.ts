@@ -1,18 +1,18 @@
 /**
  * Estos tipos reflejan las entidades de dominio del backend
- * (collector/src/core/domain/*). Cuando el backend implemente los DTOs
+ * (assu-backend/src/core/domain/*). Cuando el backend implemente los DTOs
  * reales de la Internal API, este archivo es el punto único a actualizar.
  */
 
 export type BankStatus = 'ACTIVE' | 'INACTIVE' | 'DEGRADED';
-export type CollectorType = 'WEB_SCRAPING' | 'MOBILE_PROXY' | 'FILE_EXPORT' | 'HYBRID';
+export type IntegrationType = 'WEB_SCRAPING' | 'MOBILE_PROXY' | 'FILE_EXPORT' | 'HYBRID';
 
 export interface Bank {
   id: string;
   name: string;
   country: string;
   status: BankStatus;
-  collectorType: CollectorType;
+  integrationType: IntegrationType;
   adapterKey: string;
   createdAt: string;
 }
@@ -64,7 +64,7 @@ export interface SyncLog {
   durationMs: number | null;
 }
 
-export interface CollectorStatus {
+export interface HealthStatus {
   status: 'ok' | 'degraded';
   database: 'up' | 'down';
   timestamp: string;

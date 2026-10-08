@@ -16,7 +16,7 @@ describe('ReceiptTextParser', () => {
       Fecha: 04/09/2026
       Hora: 3:45 p.m.
       Referencia: M123456789
-      Para: Forttu Pagos
+      Para: Assu Store
     `;
 
     const { data, confidence } = parser.parse(text);

@@ -82,7 +82,7 @@ export class MonitoringService {
    * Cubre "alertar tasa de errores elevada". Deliberadamente a nivel de
    * TODO el sistema, no por banco: una tasa alta y repentina suele
    * significar que algo cambió en varios portales a la vez o que el
-   * propio Collector tiene un problema (ej. Playwright roto tras un
+   * propio Assu tiene un problema (ej. Playwright roto tras un
    * update) — señal más urgente que un solo banco fallando.
    */
   async checkHighErrorRate(): Promise<void> {

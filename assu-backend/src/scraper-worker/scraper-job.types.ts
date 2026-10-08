@@ -1,4 +1,4 @@
-import { BankCredentials, ExportedSession } from '../core/ports/collector-adapter.interface';
+import { BankCredentials, ExportedSession } from '../core/ports/bank-adapter.interface';
 import { RawMovement } from '../core/domain/movement/movement.entity';
 
 export type ScraperAction = 'login' | 'sync' | 'logout';

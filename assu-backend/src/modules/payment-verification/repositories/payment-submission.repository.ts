@@ -6,7 +6,7 @@ import {
   ListSubmissionsFilters,
   PaymentSubmissionRepositoryPort,
 } from '../../../core/ports/payment-submission-repository.port';
-import { PaymentSubmission } from '../../../core/domain/payment-verification/payment-submission.entity';
+import { PaymentSubmission, SubmissionChannel } from '../../../core/domain/payment-verification/payment-submission.entity';
 import { PaymentSubmissionStatus } from '../../../core/domain/payment-verification/payment-submission-status.enum';
 import { VerificationEvent } from '../../../core/domain/payment-verification/verification-event.entity';
 import { MatchResult } from '../../../core/domain/payment-verification/match-result.enum';
@@ -24,7 +24,7 @@ export class PaymentSubmissionRepository implements PaymentSubmissionRepositoryP
   ): Promise<{ submission: PaymentSubmission; wasCreated: boolean }> {
     // Camino rápido de idempotencia real (webhook re-entregado): si ya
     // existe, se devuelve tal cual, sin tocar nada. Solo aplica cuando
-    // el canal manda un externalMessageId (WHATSAPP); el canal API
+    // el canal manda un externalMessageId (ej. TELEGRAM); el canal API
     // puede no tenerlo, en cuyo caso cada llamada crea un submission
     // nuevo (la idempotencia ahí es responsabilidad del cliente de la API).
     if (data.externalMessageId) {
@@ -188,7 +188,7 @@ export class PaymentSubmissionRepository implements PaymentSubmissionRepositoryP
   private toDomain(row: PrismaSubmissionRow): PaymentSubmission {
     return new PaymentSubmission(
       row.id,
-      row.channel as 'WHATSAPP' | 'API',
+      row.channel as SubmissionChannel,
       row.externalMessageId,
       row.senderIdentifier,
       row.bankAccountId,

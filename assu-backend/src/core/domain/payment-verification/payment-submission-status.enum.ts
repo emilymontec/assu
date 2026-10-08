@@ -8,7 +8,7 @@
  *     ↓
  *   PROCESSING          (validando archivo + corriendo OCR)
  *     ↓
- *   PENDING_MOVEMENT    (a la espera de que Collector detecte el movimiento)
+ *   PENDING_MOVEMENT    (a la espera de que Assu detecte el movimiento)
  *     ↓
  *   MATCHING            (corriendo el motor de conciliación)
  *     ├── VERIFIED        evidencia suficiente: monto+referencia+ventana de tiempo

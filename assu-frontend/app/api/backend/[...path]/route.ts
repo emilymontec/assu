@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Todo lo que el navegador pide a /api/backend/* pasa por aquí antes de
- * llegar al backend real de Assu (repo `assu-backend/`, arquitectura
- * interna conocida como "Collector"). Este es el ÚNICO lugar donde vive
+ * llegar al backend real de Assu (repo `assu-backend/`). Este es el
+ * ÚNICO lugar donde vive
  * ASSU_BACKEND_API_KEY — nunca se manda al cliente.
  */
 

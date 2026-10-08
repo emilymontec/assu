@@ -54,7 +54,7 @@ Edita `.env` y como mínimo revisa:
 | `INTERNAL_API_KEY` | Cámbiala por cualquier string; la usarás en todas las llamadas a la API |
 | `RECEIPTS_STORAGE_PATH` | Carpeta local donde se guardan los comprobantes recibidos (por defecto `./storage/receipts`) |
 | `OCR_PROVIDER` | Déjala en `null` (default) para el placeholder, o ponla en `tesseract` para activar OCR real (Tesseract.js + `pdf-parse`, sin credenciales de nube — ver sección 5.3) |
-| `OPENWA_*` | Solo necesarias si vas a probar la ingesta real por WhatsApp (sección 5.2) — no requieren cuenta de Meta, solo un número de WhatsApp real |
+| `TELEGRAM_*` | Solo necesarias si vas a probar la ingesta real por Telegram (sección 5.2) — no requieren cuenta de desarrollador, solo un bot creado vía @BotFather |
 
 ### 2.3 Generar Prisma Client y correr migraciones
 
@@ -89,8 +89,9 @@ pnpm run start:dev
 
 - API en `http://localhost:3000`
 - Swagger (documentación interactiva) en `http://localhost:3000/docs`
-- Todos los endpoints (excepto el webhook de WhatsApp) requieren el
-  header `x-api-key: <tu INTERNAL_API_KEY>`
+- Todos los endpoints requieren el header `x-api-key: <tu
+  INTERNAL_API_KEY>` (la ingesta por Telegram no expone ningún endpoint
+  HTTP — el bot corre dentro del propio proceso, ver sección 5.2)
 
 ### 2.6 Prueba rápida de humo (smoke test)
 
@@ -101,7 +102,7 @@ curl http://localhost:3000/status -H "x-api-key: TU_API_KEY"
 # Crear un banco
 curl -X POST http://localhost:3000/banks \
   -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
-  -d '{"name":"Nequi","adapterKey":"nequi","country":"CO","collectorType":"SCRAPING"}'
+  -d '{"name":"Nequi","adapterKey":"nequi","country":"CO","integrationType":"WEB_SCRAPING"}'
 ```
 
 Si esto responde `200`/`201`, el backend, la base de datos y Redis están
@@ -168,9 +169,9 @@ contra el backend, ya que pasa por el mismo API.
 
 ## 5. Probar el módulo de verificación de comprobantes
 
-### 5.1 Modo simulado (sin WhatsApp real) — recomendado para probar rápido
+### 5.1 Modo simulado (sin Telegram real) — recomendado para probar rápido
 
-Este modo prueba OCR → conciliación → estados sin necesitar WhatsApp
+Este modo prueba OCR → conciliación → estados sin necesitar Telegram
 conectado. Inserta un `PaymentSubmission` directamente y deja que el
 sistema lo procese:
 
@@ -206,7 +207,7 @@ sistema lo procese:
    # Forzar una revisión manual (verificarlo a mano, como haría un operador)
    curl -X POST "http://localhost:3000/payment-verifications/<id>/manual-review" \
      -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
-     -d '{"toStatus":"VERIFIED","reason":"Confirmado manualmente en prueba","actor":"tu-nombre@forttu.co"}'
+     -d '{"toStatus":"VERIFIED","reason":"Confirmado manualmente en prueba","actor":"tu-nombre@assu.app"}'
    ```
 
 4. Para probar el motor de conciliación de forma aislada y rápida (sin
@@ -218,32 +219,32 @@ sistema lo procese:
    Ahí ya ves ejemplos reales de `EXACT_MATCH`, `PROBABLE_MATCH`,
    `AMBIGUOUS_MATCH`, `NO_MATCH` y `PENDING`.
 
-### 5.2 Modo real con WhatsApp (open-wa)
+### 5.2 Modo real con Telegram
 
-La ingesta usa [open-wa](https://github.com/open-wa/wa-automate-nodejs)
-(WhatsApp Web automatizado), no WhatsApp Cloud API — no necesitas cuenta
-de Meta ni Business API, solo un número de WhatsApp real (puede ser tu
-propio celular o uno de prueba) y escanear un QR una vez.
+La ingesta usa [Telegraf](https://telegraf.js.org) sobre la Bot API
+oficial de Telegram — gratis, sin límite de mensajes y sin riesgo de
+bloqueo por automatización (a diferencia de open-wa/WhatsApp Web, que sí
+puede ser bloqueado por Meta). No necesitas cuenta de desarrollador ni
+verificación de negocio, solo crear el bot una vez.
 
 1. Crea al menos una cuenta bancaria (`POST /bank-accounts`) y copia su
    `id`.
-2. En `assu-backend/.env`:
+2. Crea el bot en Telegram (una sola vez):
+   - Abre un chat con [@BotFather](https://t.me/BotFather) en Telegram.
+   - Envía `/newbot`, elige un nombre y un username (debe terminar en
+     `bot`, ej. `assu_receipts_bot`).
+   - BotFather te devuelve un token con forma
+     `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`. Guárdalo.
+3. En `assu-backend/.env`:
    ```bash
-   OPENWA_SESSION_ID=assu-backend
-   OPENWA_HEADLESS=false   # para poder VER el navegador y escanear el QR
-   OPENWA_BANK_ACCOUNT_ID=<el id que copiaste>
+   TELEGRAM_BOT_TOKEN=<el token que te dio BotFather>
+   TELEGRAM_BANK_ACCOUNT_ID=<el id que copiaste en el paso 1>
    ```
-3. Levanta el backend (`pnpm run start:dev`). Se abrirá una ventana de
-   Chromium controlada por Playwright/Puppeteer con un código QR.
-4. Desde el WhatsApp de tu celular: Ajustes → Dispositivos vinculados →
-   Vincular un dispositivo, y escanea el QR.
-5. Una vez vinculado, verás en los logs del backend algo como
-   `Cliente de WhatsApp (open-wa) listo — sesión "assu-backend"`.
-   La sesión queda guardada en disco (`assu-backend.data.json`), así
-   que no vas a tener que volver a escanear el QR en próximos arranques
-   — puedes volver a poner `OPENWA_HEADLESS=true`.
-6. Desde el mismo celular (o desde otro número, hablándole al que
-   vinculaste), envía una foto o PDF de un comprobante. Deberías:
+4. Levanta el backend (`pnpm run start:dev`). En los logs deberías ver
+   `Bot de Telegram listo (long-polling).` — no hay QR que escanear ni
+   navegador que se abra.
+5. Desde tu celular, busca tu bot por el username que elegiste y envía
+   `/start` (o directamente una foto/PDF). Deberías:
    - Recibir una respuesta automática de "Recibimos tu comprobante..."
    - Ver el nuevo `PaymentSubmission` con `GET /payment-verifications`
    - Verlo avanzar de estado en los logs del backend. Con
@@ -251,12 +252,11 @@ propio celular o uno de prueba) y escanear un QR una vez.
      `OCR_PROVIDER=tesseract` (sección 5.3) puede llegar directo a
      `VERIFIED` si el monto/referencia coinciden con un movimiento.
 
-**Nota importante**: open-wa controla un único número de WhatsApp por
-sesión, y ese número queda dedicado a la cuenta bancaria que pusiste en
-`OPENWA_BANK_ACCOUNT_ID` — a diferencia de WhatsApp Cloud API, aquí no
-hay una URL de webhook distinta por cuenta. Para un demo con una sola
-cuenta esto es suficiente; para varias cuentas simultáneas habría que
-correr una sesión de open-wa por cuenta (procesos separados).
+**Nota importante**: el bot recibe mensajes de cualquier chat que le
+escriba, y todos quedan asociados a la cuenta bancaria que pusiste en
+`TELEGRAM_BANK_ACCOUNT_ID` — no hay una URL de webhook distinta por
+cuenta. Para un demo con una sola cuenta esto es suficiente; para varias
+cuentas simultáneas se despliega un bot (token) por comercio/cuenta.
 
 ### 5.3 Activar OCR real (Tesseract.js, sin cuenta de Google/AWS)
 
@@ -278,7 +278,7 @@ de forma aislada y rápida, sin necesitar una imagen real:
 pnpm test receipt-text-parser
 ```
 
-Con esto activo, un comprobante real por WhatsApp con buena calidad de
+Con esto activo, un comprobante real por Telegram con buena calidad de
 imagen debería poder llegar a `VERIFIED` automáticamente si el monto y
 la referencia coinciden con un movimiento — ya no se queda forzosamente
 en `MANUAL_REVIEW`. Si tus comprobantes reales no se están extrayendo
@@ -292,7 +292,7 @@ pipeline.
 Esto es lo único de la tabla de la sección 7 que **no** se resuelve
 solo con configuración — requiere que alguien con acceso a una cuenta
 real de Nequi inspeccione el portal. Sigue la guía paso a paso en
-[`docs/fase-0-nequi.md`](./docs/fase-0-nequi.md).
+[`assu-backend/docs/fase-0-nequi.md`](./assu-backend/docs/fase-0-nequi.md).
 
 ---
 
@@ -309,7 +309,7 @@ curl -X POST http://localhost:3000/bank-accounts \
   -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
   -d '{
     "bankId": "<id de un banco creado antes>",
-    "merchantId": "forttu-demo",
+    "merchantId": "assu-demo",
     "accountNumber": "3001234567",
     "credentials": {"phone": "3001234567", "pin": "1234"},
     "confirmedReadOnlyCredentials": true
@@ -378,10 +378,10 @@ pnpm test docker-container-runner docker-isolated
 
 | Pendiente | Motivo |
 |---|---|
-| Sincronización real contra el portal de Nequi | `NequiAdapter` tiene los selectores de Playwright pendientes (Fase 0 del roadmap: investigación real del portal). Ver `docs/fase-0-nequi.md` — requiere una cuenta real de Nequi, no se puede resolver solo con configuración |
+| Sincronización real contra el portal de Nequi | `NequiAdapter` tiene los selectores de Playwright pendientes (Fase 0 del roadmap: investigación real del portal). Ver `assu-backend/docs/fase-0-nequi.md` — requiere una cuenta real de Nequi, no se puede resolver solo con configuración |
 
-Con `OCR_PROVIDER=tesseract` (sección 5.3) y open-wa conectado (sección
-5.2), el `EXACT_MATCH` de punta a punta por WhatsApp puede funcionar
+Con `OCR_PROVIDER=tesseract` (sección 5.3) y Telegram conectado (sección
+5.2), el `EXACT_MATCH` de punta a punta por Telegram puede funcionar
 solo. Lo único que le falta al flujo completo es la Fase 0 de Nequi para
 que la detección de movimientos en sí sea real (hoy el `NequiAdapter` no
 puede loguearse contra el portal real todavía).

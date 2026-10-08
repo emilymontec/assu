@@ -9,7 +9,7 @@ import { MetricsService } from './metrics.service';
  * config (o una red interna/VPN) el que debe restringir quién llega
  * hasta acá — igual que expone cualquier exporter estándar de
  * Prometheus. Se excluye de Swagger porque no es parte de la API de
- * negocio del Collector.
+ * negocio del Assu.
  */
 @ApiExcludeController()
 @Controller('metrics')

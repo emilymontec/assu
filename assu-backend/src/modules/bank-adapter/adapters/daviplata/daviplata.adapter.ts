@@ -1,4 +1,4 @@
-import { BankCredentials } from '../../../../core/ports/collector-adapter.interface';
+import { BankCredentials } from '../../../../core/ports/bank-adapter.interface';
 import { RawMovement } from '../../../../core/domain/movement/movement.entity';
 import { PlaywrightAdapterBase, PlaywrightAdapterOptions } from '../../../../core/base/playwright-adapter.base';
 import { InvalidCredentialsError, PortalStructureChangedError } from '../../../../common/errors/permanent.error';

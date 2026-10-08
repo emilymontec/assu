@@ -25,7 +25,7 @@ export default function BanksPage() {
     <>
       <PageHeader
         title="Bancos"
-        description="Entidades financieras soportadas por el Collector."
+        description="Entidades financieras soportadas por Assu."
         action={
           <Button size="sm" disabled={notImplemented}>
             <Plus className="h-3.5 w-3.5" /> Registrar banco
@@ -51,7 +51,7 @@ export default function BanksPage() {
               <TableRow key={bank.id}>
                 <TableCell className="font-medium">{bank.name}</TableCell>
                 <TableCell className="text-muted-foreground">{bank.country}</TableCell>
-                <TableCell className="text-muted-foreground">{bank.collectorType}</TableCell>
+                <TableCell className="text-muted-foreground">{bank.integrationType}</TableCell>
                 <TableCell className="text-muted-foreground">{bank.adapterKey}</TableCell>
                 <TableCell>
                   <BankStatusBadge status={bank.status} />

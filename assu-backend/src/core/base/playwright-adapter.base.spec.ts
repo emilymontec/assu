@@ -1,4 +1,4 @@
-import { BankCredentials } from '../ports/collector-adapter.interface';
+import { BankCredentials } from '../ports/bank-adapter.interface';
 import { RawMovement } from '../domain/movement/movement.entity';
 
 const mockPage = { close: jest.fn().mockResolvedValue(undefined) };

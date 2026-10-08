@@ -1,8 +1,8 @@
-import { BankStatus, CollectorType } from './bank-status.enum';
+import { BankStatus, IntegrationType } from './bank-status.enum';
 
 /**
  * Entidad de dominio pura. No conoce Prisma, NestJS ni HTTP.
- * Representa una entidad financiera soportada por el Collector.
+ * Representa una entidad financiera soportada por el Assu.
  */
 export class Bank {
   constructor(
@@ -10,7 +10,7 @@ export class Bank {
     public name: string,
     public country: string,
     public status: BankStatus,
-    public collectorType: CollectorType,
+    public integrationType: IntegrationType,
     public adapterKey: string,
     public readonly createdAt: Date,
     public updatedAt: Date = new Date(),

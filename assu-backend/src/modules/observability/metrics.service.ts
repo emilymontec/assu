@@ -24,14 +24,14 @@ export class MetricsService {
   private readonly registry = new Registry();
 
   private readonly syncsTotal = new Counter({
-    name: 'collector_syncs_total',
+    name: 'assu_syncs_total',
     help: 'Sincronizaciones ejecutadas, por banco y resultado',
     labelNames: ['bank', 'status'] as const,
     registers: [this.registry],
   });
 
   private readonly syncDurationSeconds = new Histogram({
-    name: 'collector_sync_duration_seconds',
+    name: 'assu_sync_duration_seconds',
     help: 'Duración de una sincronización completa (login → guardar → publicar evento)',
     labelNames: ['bank', 'status'] as const,
     buckets: [0.5, 1, 2, 5, 10, 20, 30, 60, 120],
@@ -39,34 +39,34 @@ export class MetricsService {
   });
 
   private readonly movementsSavedTotal = new Counter({
-    name: 'collector_movements_saved_total',
+    name: 'assu_movements_saved_total',
     help: 'Movimientos nuevos guardados, por banco',
     labelNames: ['bank'] as const,
     registers: [this.registry],
   });
 
   private readonly syncErrorsTotal = new Counter({
-    name: 'collector_sync_errors_total',
+    name: 'assu_sync_errors_total',
     help: 'Errores de sincronización, por banco y tipo de error',
     labelNames: ['bank', 'errorType'] as const,
     registers: [this.registry],
   });
 
   private readonly retriesTotal = new Counter({
-    name: 'collector_retries_total',
+    name: 'assu_retries_total',
     help: 'Reintentos programados por BullMQ tras un error transitorio',
     registers: [this.registry],
   });
 
   private readonly expiredSessionsTotal = new Counter({
-    name: 'collector_expired_sessions_total',
+    name: 'assu_expired_sessions_total',
     help: 'Sesiones detectadas como expiradas al intentar reutilizarlas',
     registers: [this.registry],
   });
 
   constructor() {
     // process_cpu_*, nodejs_heap_*, etc. — gratis, útiles para saber si
-    // el propio Collector es el problema (memory leak, event loop lag).
+    // el propio Assu es el problema (memory leak, event loop lag).
     collectDefaultMetrics({ register: this.registry });
   }
 

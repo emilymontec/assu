@@ -54,7 +54,7 @@ export default function OverviewPage() {
     <>
       <PageHeader
         title="Resumen"
-        description="Estado general del Collector: bancos, cuentas y necesidad de atención operativa."
+        description="Estado general de Assu: bancos, cuentas y necesidad de atención operativa."
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -98,7 +98,7 @@ export default function OverviewPage() {
             <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
               No se pudo conectar con <code className="rounded bg-background px-1">ASSU_BACKEND_API_URL</code>.
               Verifica que el backend esté corriendo (<code className="rounded bg-background px-1">npm run start:dev</code>{' '}
-              en <code className="rounded bg-background px-1">collector/</code>) y que{' '}
+              en <code className="rounded bg-background px-1">assu-backend/</code>) y que{' '}
               <code className="rounded bg-background px-1">.env.local</code> apunte a la URL correcta.
             </p>
           )}

@@ -8,7 +8,7 @@ import { EncryptionPort } from '../../../core/ports/encryption.port';
  *
  * Diferencia clave frente a `EncryptionService` (AES-256-GCM local): acá
  * la clave criptográfica NUNCA sale de AWS KMS ni pasa por la memoria de
- * este proceso. Collector solo envía el texto plano (para cifrar) o el
+ * este proceso. Assu solo envía el texto plano (para cifrar) o el
  * ciphertext (para descifrar) por la API de KMS; AWS hace la operación
  * y devuelve el resultado. Si este servidor se ve comprometido, quien
  * lo comprometa no obtiene la clave — solo puede seguir pidiéndole a

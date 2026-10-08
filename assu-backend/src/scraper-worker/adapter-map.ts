@@ -1,10 +1,10 @@
 import { PlaywrightAdapterOptions } from '../core/base/playwright-adapter.base';
-import { CollectorAdapter } from '../core/ports/collector-adapter.interface';
+import { BankAdapter } from '../core/ports/bank-adapter.interface';
 import { NequiAdapter } from '../modules/bank-adapter/adapters/nequi/nequi.adapter';
 import { BancolombiaAdapter } from '../modules/bank-adapter/adapters/bancolombia/bancolombia.adapter';
 import { DaviplataAdapter } from '../modules/bank-adapter/adapters/daviplata/daviplata.adapter';
 
-export type AdapterConstructor = new (options: PlaywrightAdapterOptions) => CollectorAdapter;
+export type AdapterConstructor = new (options: PlaywrightAdapterOptions) => BankAdapter;
 
 /**
  * Fuente única de verdad de qué `adapterKey` mapea a qué clase.
@@ -16,7 +16,7 @@ export type AdapterConstructor = new (options: PlaywrightAdapterOptions) => Coll
  *     corre DENTRO del contenedor desechable cuando
  *     `SCRAPER_ISOLATION_MODE=docker` está activo (ver
  *     `DockerIsolatedAdapter`). Ese proceso no tiene NestJS ni el resto
- *     de Collector cargado — solo esto.
+ *     de Assu cargado — solo esto.
  *
  * Agregar un banco nuevo: una línea acá alcanza para que quede
  * disponible en AMBOS modos de ejecución.

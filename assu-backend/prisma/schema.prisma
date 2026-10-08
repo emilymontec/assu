@@ -13,7 +13,7 @@ enum BankStatus {
   DEGRADED
 }
 
-enum CollectorType {
+enum IntegrationType {
   WEB_SCRAPING
   MOBILE_PROXY
   FILE_EXPORT
@@ -25,7 +25,7 @@ model Bank {
   name          String
   country       String
   status        BankStatus    @default(ACTIVE)
-  collectorType CollectorType @map("collector_type")
+  integrationType IntegrationType @map("integration_type")
   adapterKey    String        @unique @map("adapter_key")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -54,7 +54,7 @@ model BankAccount {
   // puede verificar esto contra el banco (eso lo decide el banco al
   // crear el usuario/rol) — es una responsabilidad del operador, no una
   // garantía criptográfica. La garantía real, estructural, es que
-  // `CollectorAdapter` (ver core/ports/collector-adapter.interface.ts)
+  // `BankAdapter` (ver core/ports/bank-adapter.interface.ts)
   // solo expone login()/sync()/logout() — no existe ningún método de
   // transferencia en ningún adapter, así que aunque la credencial SÍ
   // tuviera permisos de escritura, el código no tiene cómo usarlos.
@@ -134,7 +134,7 @@ model Movement {
 // ─────────────────────────────────────────────────────────────────────
 
 enum SubmissionChannel {
-  WHATSAPP
+  TELEGRAM
   API
 }
 

@@ -1,5 +1,5 @@
 import { Browser, BrowserContext, Page, chromium } from 'playwright';
-import { BankCredentials, CollectorAdapter, ExportedSession } from '../ports/collector-adapter.interface';
+import { BankCredentials, BankAdapter, ExportedSession } from '../ports/bank-adapter.interface';
 import { RawMovement } from '../domain/movement/movement.entity';
 import { BankUnavailableError, TimeoutError } from '../../common/errors/transient.error';
 
@@ -14,7 +14,7 @@ export interface PlaywrightAdapterOptions {
   timeoutMs: number;
   /**
    * Opcional a propósito: sin esto configurado, el tráfico sale con la
-   * IP normal del servidor donde corre Collector. Configurarlo (ver
+   * IP normal del servidor donde corre Assu. Configurarlo (ver
    * `AdapterFactoryService` + `PLAYWRIGHT_PROXY_*` en `.env`) hace que
    * cada request al banco salga por un proxy dedicado/residencial —
    * reduce (no elimina) el riesgo de que la banca en línea marque el
@@ -29,7 +29,7 @@ export interface PlaywrightAdapterOptions {
  * oficiales de open banking. Cada banco extiende esta clase e implementa
  * únicamente login()/sync() con sus selectores específicos.
  */
-export abstract class PlaywrightAdapterBase implements CollectorAdapter {
+export abstract class PlaywrightAdapterBase implements BankAdapter {
   protected browser: Browser | null = null;
   protected context: BrowserContext | null = null;
   protected page: Page | null = null;

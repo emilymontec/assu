@@ -6,7 +6,7 @@ import { RECEIPT_PROCESSING_QUEUE_NAME, ReceiptProcessingJobData } from '../rece
 
 /**
  * Igual filosofía que `SyncProcessor` (módulo 14): la ingesta (webhook
- * de WhatsApp / endpoint de API) solo crea el `PaymentSubmission` y
+ * de Telegram / endpoint de API) solo crea el `PaymentSubmission` y
  * encola el job — nunca corre OCR ni conciliación en el request HTTP,
  * para poder responder rápido (sección 17: "RESPONDER" antes de
  * "PROCESAR ASÍNCRONAMENTE").

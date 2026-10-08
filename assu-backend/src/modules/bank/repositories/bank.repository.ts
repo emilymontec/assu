@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Bank as PrismaBank } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { Bank } from '../../../core/domain/bank/bank.entity';
-import { BankStatus, CollectorType } from '../../../core/domain/bank/bank-status.enum';
+import { BankStatus, IntegrationType } from '../../../core/domain/bank/bank-status.enum';
 
 function toDomain(record: PrismaBank): Bank {
   return new Bank(
@@ -10,7 +10,7 @@ function toDomain(record: PrismaBank): Bank {
     record.name,
     record.country,
     record.status as BankStatus,
-    record.collectorType as CollectorType,
+    record.integrationType as IntegrationType,
     record.adapterKey,
     record.createdAt,
     record.updatedAt,
@@ -20,14 +20,14 @@ function toDomain(record: PrismaBank): Bank {
 export interface CreateBankData {
   name: string;
   country: string;
-  collectorType: CollectorType;
+  integrationType: IntegrationType;
   adapterKey: string;
 }
 
 export interface UpdateBankData {
   name?: string;
   country?: string;
-  collectorType?: CollectorType;
+  integrationType?: IntegrationType;
 }
 
 export interface BankFilters {

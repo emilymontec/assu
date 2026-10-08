@@ -12,7 +12,7 @@ function buildMovement(overrides: Partial<{ id: string; reference: string; amoun
     overrides.amount ?? 50000,
     'COP',
     'Juan Pérez',
-    'Forttu Pagos',
+    'Assu Store',
     MovementType.TRANSFER,
     overrides.date ?? new Date('2026-09-04T15:00:00Z'),
     MovementStatus.VALID,

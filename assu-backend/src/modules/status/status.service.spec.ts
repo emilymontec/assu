@@ -10,13 +10,13 @@ jest.mock('../sync-log/sync-log.service', () => ({ SyncLogService: class {} }));
 // eslint-disable-next-line import/first
 import { StatusService } from './status.service';
 import { Bank } from '../../core/domain/bank/bank.entity';
-import { BankStatus, CollectorType } from '../../core/domain/bank/bank-status.enum';
+import { BankStatus, IntegrationType } from '../../core/domain/bank/bank-status.enum';
 import { BankAccount } from '../../core/domain/bank-account/bank-account.entity';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
 import { SyncLog, SyncStatus } from '../../core/domain/sync/sync-log.entity';
 
 function makeBank(status: BankStatus): Bank {
-  return new Bank('bank-1', 'Nequi', 'CO', status, CollectorType.WEB_SCRAPING, 'nequi', new Date(), new Date());
+  return new Bank('bank-1', 'Nequi', 'CO', status, IntegrationType.WEB_SCRAPING, 'nequi', new Date(), new Date());
 }
 
 function makeAccount(

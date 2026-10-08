@@ -178,7 +178,7 @@ export class PaymentVerificationService {
 
     switch (outcome.result) {
       case MatchResult.PENDING:
-        // Todavía no hay movimientos en la ventana: Collector puede no
+        // Todavía no hay movimientos en la ventana: Assu puede no
         // haber sincronizado aún. Se vuelve a PENDING_MOVEMENT para que
         // un reintento programado lo reprocese más tarde — NUNCA se
         // interpreta como "no existe" (sección 10).
@@ -259,7 +259,7 @@ export class PaymentVerificationService {
   /**
    * Punto único de entrada humano para transiciones sensibles
    * (AMBIGUOUS/MANUAL_REVIEW/ERROR/REJECTED → VERIFIED/REJECTED/etc.).
-   * `actor` DEBE identificar a la persona (ej. "USER:emily@forttu.com"),
+   * `actor` DEBE identificar a la persona (ej. "USER:emily@assu.app"),
    * nunca "SYSTEM" — eso es lo que hace auditable la decisión.
    */
   async manualReview(submissionId: string, toStatus: S, reason: string, actor: string): Promise<PaymentSubmission> {
@@ -333,7 +333,7 @@ export class PaymentVerificationService {
   }
 
   private async notify(submission: PaymentSubmission, message: string): Promise<void> {
-    if (submission.channel !== 'WHATSAPP') return; // el canal API no recibe notificaciones push, el cliente consulta el estado
+    if (submission.channel !== 'TELEGRAM') return; // el canal API no recibe notificaciones push, el cliente consulta el estado
     try {
       await this.responder.respond(submission.senderIdentifier, message);
     } catch (err) {

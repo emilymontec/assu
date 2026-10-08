@@ -51,7 +51,7 @@ export default function MonitoringPage() {
     <>
       <PageHeader
         title="Monitoreo"
-        description="Alertas operativas y auditoría de operaciones sensibles del Collector."
+        description="Alertas operativas y auditoría de operaciones sensibles de Assu."
       />
 
       <div className="mb-6">

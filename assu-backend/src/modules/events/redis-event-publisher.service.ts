@@ -24,7 +24,7 @@ export class RedisEventPublisherService implements EventPublisherPort {
    * queda registrado en el log de error del propio Sync Engine).
    */
   async publish<T>(event: DomainEvent<T>): Promise<void> {
-    const streamName = this.configService.get<string>('events.streamName') ?? 'collector.movements';
+    const streamName = this.configService.get<string>('events.streamName') ?? 'assu.movements';
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

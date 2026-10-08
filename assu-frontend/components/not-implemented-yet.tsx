@@ -12,8 +12,8 @@ export function NotImplementedYet({ endpoint, module }: NotImplementedYetProps) 
       <p className="text-sm font-medium">Este endpoint todavía no existe en el backend</p>
       <p className="max-w-sm text-xs text-muted-foreground">
         Esta vista consumirá <code className="rounded bg-muted px-1 py-0.5">{endpoint}</code> en cuanto
-        el módulo <strong className="font-medium text-foreground">{module}</strong> se implemente en el
-        Collector.
+        el módulo <strong className="font-medium text-foreground">{module}</strong> se implemente en
+        Assu.
       </p>
     </div>
   );

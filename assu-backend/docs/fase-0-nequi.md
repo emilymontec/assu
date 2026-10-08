@@ -36,7 +36,7 @@ que reconsiderar el enfoque de "Bank Adapter System" completo:
 
 1. **¿Los términos de uso de Nequi permiten automatizar el acceso a la
    cuenta de un usuario final?** Revísalo con quien lleve el tema legal
-   de Forttu Pagos. Muchos bancos prohíben explícitamente el scraping en
+   del equipo legal de Assu. Muchos bancos prohíben explícitamente el scraping en
    sus términos, incluso con el consentimiento del titular de la cuenta.
 2. **¿La cuenta de Nequi que vas a usar para probar tiene MFA/OTP
    activado?** Si Nequi pide un código que llega por SMS/notificación
@@ -189,7 +189,7 @@ dime y actualizo:
 
 - `src/modules/README.md` (quitar la advertencia de "selectores
   placeholder" de Bank Adapter System).
-- El `EXACT_MATCH` de punta a punta por WhatsApp ya debería funcionar
+- El `EXACT_MATCH` de punta a punta por Telegram ya debería funcionar
   solo con esto + `OCR_PROVIDER=tesseract` — no hace falta tocar
   `reconciliation-engine` ni `payment-verification` para que ese punto
   quede resuelto.

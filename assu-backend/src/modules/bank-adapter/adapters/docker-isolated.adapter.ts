@@ -1,9 +1,9 @@
-import { BankCredentials, CollectorAdapter, ExportedSession } from '../../../core/ports/collector-adapter.interface';
+import { BankCredentials, BankAdapter, ExportedSession } from '../../../core/ports/bank-adapter.interface';
 import { RawMovement } from '../../../core/domain/movement/movement.entity';
 import { DockerScraperConfig, runScraperContainer } from '../docker-container-runner';
 
 /**
- * Implementación de `CollectorAdapter` que NO ejecuta Playwright en este
+ * Implementación de `BankAdapter` que NO ejecuta Playwright en este
  * proceso: delega cada operación a un contenedor Docker desechable
  * (`docker run --rm`, ver `docker/scraper/Dockerfile`), uno por
  * llamada. El contenedor se destruye apenas termina cada operación —
@@ -14,7 +14,7 @@ import { DockerScraperConfig, runScraperContainer } from '../docker-container-ru
  * del contenedor quien resuelve la clase real vía `ADAPTER_MAP`. Por
  * eso `LoginManagerService`/`SyncEngineService` no necesitan saber que
  * están hablando con un contenedor en vez del adapter real — reciben
- * exactamente el mismo contrato `CollectorAdapter`.
+ * exactamente el mismo contrato `BankAdapter`.
  *
  * La sesión (cookies/tokens) es el "estado" que conecta las llamadas:
  * `login()` la recibe de vuelta del contenedor y la guarda en memoria
@@ -25,7 +25,7 @@ import { DockerScraperConfig, runScraperContainer } from '../docker-container-ru
  * `this.session` solo vive mientras dura este objeto (una llamada a
  * `ensureLoggedIn()` de Login Manager).
  */
-export class DockerIsolatedAdapter implements CollectorAdapter {
+export class DockerIsolatedAdapter implements BankAdapter {
   private session: ExportedSession | null = null;
 
   constructor(

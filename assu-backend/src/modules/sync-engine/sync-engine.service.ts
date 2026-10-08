@@ -14,7 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuditResult } from '../../core/domain/audit/audit-result.enum';
 import { MetricsService } from '../observability/metrics.service';
 import { EVENT_PUBLISHER_PORT, EventPublisherPort } from '../../core/ports/event-publisher.port';
-import { CollectorAdapter } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter } from '../../core/ports/bank-adapter.interface';
 import { Bank } from '../../core/domain/bank/bank.entity';
 import { Movement } from '../../core/domain/movement/movement.entity';
 import { MovementStatus } from '../../core/domain/movement/movement-status.enum';
@@ -61,7 +61,7 @@ export class SyncEngineService {
    */
   async syncAccount(accountId: string): Promise<SyncResult> {
     const syncLog = await this.syncLogService.start(accountId);
-    let adapter: CollectorAdapter | undefined;
+    let adapter: BankAdapter | undefined;
     let bank: Bank | undefined;
 
     try {

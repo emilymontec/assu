@@ -3,7 +3,7 @@ import { MatchResult } from './match-result.enum';
 import { OcrConfidence } from './ocr-confidence.enum';
 import { ExtractedReceiptData } from './extracted-receipt-data';
 
-export type SubmissionChannel = 'WHATSAPP' | 'API';
+export type SubmissionChannel = 'TELEGRAM' | 'API';
 
 export class PaymentSubmission {
   constructor(

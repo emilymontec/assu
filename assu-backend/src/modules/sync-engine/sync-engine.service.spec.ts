@@ -14,16 +14,16 @@ jest.mock('../sync-log/sync-log.service', () => ({ SyncLogService: class {} }));
 // eslint-disable-next-line import/first
 import { SyncEngineService } from './sync-engine.service';
 import { Bank } from '../../core/domain/bank/bank.entity';
-import { BankStatus, CollectorType } from '../../core/domain/bank/bank-status.enum';
+import { BankStatus, IntegrationType } from '../../core/domain/bank/bank-status.enum';
 import { BankAccount } from '../../core/domain/bank-account/bank-account.entity';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
 import { SyncStatus, SyncLog } from '../../core/domain/sync/sync-log.entity';
-import { CollectorAdapter } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter } from '../../core/ports/bank-adapter.interface';
 import { MOVEMENT_CREATED_EVENT } from '../events/movement-created.event';
 import { AuditResult } from '../../core/domain/audit/audit-result.enum';
 
 function makeBank(): Bank {
-  return new Bank('bank-1', 'Nequi', 'CO', BankStatus.ACTIVE, CollectorType.WEB_SCRAPING, 'nequi', new Date(), new Date());
+  return new Bank('bank-1', 'Nequi', 'CO', BankStatus.ACTIVE, IntegrationType.WEB_SCRAPING, 'nequi', new Date(), new Date());
 }
 
 function makeAccount(lastMovementReference: string | null = null): BankAccount {
@@ -44,7 +44,7 @@ function makeAccount(lastMovementReference: string | null = null): BankAccount {
   );
 }
 
-function makeFakeAdapter(overrides: Partial<CollectorAdapter> = {}): CollectorAdapter {
+function makeFakeAdapter(overrides: Partial<BankAdapter> = {}): BankAdapter {
   return {
     login: jest.fn().mockResolvedValue(undefined),
     sync: jest.fn().mockResolvedValue([]),

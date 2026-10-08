@@ -2,7 +2,7 @@ export default () => ({
   app: {
     env: process.env.NODE_ENV,
     port: parseInt(process.env.PORT ?? '3000', 10),
-    name: process.env.APP_NAME ?? 'collector',
+    name: process.env.APP_NAME ?? 'assu',
   },
   database: {
     url: process.env.DATABASE_URL,
@@ -17,7 +17,7 @@ export default () => ({
     // variable de entorno). Simple y funciona, pero la clave "vive" en el
     // servidor — quien tenga acceso al proceso/entorno puede leerla.
     // 'aws-kms': cada encrypt()/decrypt() llama a AWS KMS; la clave real
-    // NUNCA sale de KMS ni pasa por la memoria de este proceso — Collector
+    // NUNCA sale de KMS ni pasa por la memoria de este proceso — Assu
     // solo envía el texto plano/cifrado y KMS hace la operación criptográfica
     // del lado de AWS. Requiere AWS_KMS_KEY_ID (+ credenciales de AWS
     // estándar: variables de entorno, rol de IAM, etc. — no se gestionan acá).
@@ -57,7 +57,7 @@ export default () => ({
     level: process.env.LOG_LEVEL ?? 'info',
   },
   events: {
-    streamName: process.env.EVENTS_STREAM_NAME ?? 'collector.movements',
+    streamName: process.env.EVENTS_STREAM_NAME ?? 'assu.movements',
   },
   monitoring: {
     // Umbral mínimo; si syncIntervalSeconds*3 de una cuenta da un número
@@ -85,22 +85,19 @@ export default () => ({
     // inventa un dato ni se verifica solo por defecto).
     provider: process.env.OCR_PROVIDER ?? 'null',
   },
-  openWa: {
-    // Identifica la sesión de WhatsApp Web guardada en disco
-    // (node_modules/@open-wa/wa-automate deja los datos de sesión bajo
-    // `sessionId.data.json` para no tener que escanear el QR en cada
-    // arranque). Usa un valor distinto si necesitas correr más de una
-    // sesión en la misma máquina.
-    sessionId: process.env.OPENWA_SESSION_ID ?? 'assu-backend',
-    // false para ver el navegador y escanear el QR la primera vez;
-    // true para producción/demo ya autenticada.
-    headless: (process.env.OPENWA_HEADLESS ?? 'true') === 'true',
-    // open-wa controla UN número de WhatsApp por sesión — a diferencia
-    // de WhatsApp Cloud API (donde la URL del webhook indicaba la
-    // cuenta), aquí no hay forma de que el mensaje "diga" a qué cuenta
-    // de Forttu Pagos pertenece. Para este demo, cada sesión de open-wa
-    // está dedicada a una sola cuenta bancaria, configurada acá.
-    bankAccountId: process.env.OPENWA_BANK_ACCOUNT_ID ?? null,
+  telegram: {
+    // Token del bot, obtenido una sola vez vía @BotFather (gratis). Sin
+    // este valor, TelegramClientService loguea un warning y el resto de
+    // Assu sigue funcionando igual (el canal de ingesta por Telegram
+    // simplemente no arranca).
+    botToken: process.env.TELEGRAM_BOT_TOKEN ?? null,
+    // El bot de Telegram recibe mensajes de cualquier chat que le
+    // escriba — a diferencia de un número de WhatsApp dedicado, aquí no
+    // hay forma de que el mensaje "diga" a qué cuenta del comercio
+    // pertenece. Para este sistema, cada bot está dedicado a una sola
+    // cuenta bancaria, configurada acá. Si se necesitan varios
+    // comercios, se despliega un bot (token) por comercio.
+    bankAccountId: process.env.TELEGRAM_BANK_ACCOUNT_ID ?? null,
   },
   scraperIsolation: {
     // 'in-process' (default): el adapter corre Playwright dentro de este

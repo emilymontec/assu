@@ -13,16 +13,16 @@ jest.mock('../bank/bank.service', () => ({ BankService: class {} }));
 // eslint-disable-next-line import/first
 import { LoginManagerService } from './login-manager.service';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
-import { BankStatus, CollectorType } from '../../core/domain/bank/bank-status.enum';
+import { BankStatus, IntegrationType } from '../../core/domain/bank/bank-status.enum';
 import { Bank } from '../../core/domain/bank/bank.entity';
 import { BankAccount } from '../../core/domain/bank-account/bank-account.entity';
 import { InvalidCredentialsError } from '../../common/errors/permanent.error';
 import { TransientLoginError } from '../../common/errors/transient.error';
-import { CollectorAdapter, ExportedSession } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter, ExportedSession } from '../../core/ports/bank-adapter.interface';
 import { AuditResult } from '../../core/domain/audit/audit-result.enum';
 
 function makeBank(status: BankStatus = BankStatus.ACTIVE): Bank {
-  return new Bank('bank-1', 'Nequi', 'CO', status, CollectorType.WEB_SCRAPING, 'nequi', new Date(), new Date());
+  return new Bank('bank-1', 'Nequi', 'CO', status, IntegrationType.WEB_SCRAPING, 'nequi', new Date(), new Date());
 }
 
 function makeAccount(overrides: Partial<{ status: AccountStatus }> = {}): BankAccount {
@@ -43,7 +43,7 @@ function makeAccount(overrides: Partial<{ status: AccountStatus }> = {}): BankAc
   );
 }
 
-function makeFakeAdapter(overrides: Partial<CollectorAdapter> = {}): CollectorAdapter {
+function makeFakeAdapter(overrides: Partial<BankAdapter> = {}): BankAdapter {
   return {
     login: jest.fn().mockResolvedValue(undefined),
     sync: jest.fn().mockResolvedValue([]),

@@ -115,8 +115,8 @@ class EnvironmentVariables {
 
   // ── Verificación de comprobantes ──────────────────────────────
   // Todas opcionales: si no se configuran, el sistema sigue arrancando
-  // (Collector puede operar solo con detección de movimientos), pero
-  // los endpoints de WhatsApp/OCR reales quedarán sin funcionar hasta
+  // (Assu puede operar solo con detección de movimientos), pero
+  // los endpoints de Telegram/OCR reales quedarán sin funcionar hasta
   // que se completen.
   @IsOptional()
   @IsString()
@@ -128,15 +128,11 @@ class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
-  OPENWA_SESSION_ID?: string;
+  TELEGRAM_BOT_TOKEN?: string;
 
   @IsOptional()
   @IsString()
-  OPENWA_HEADLESS?: string;
-
-  @IsOptional()
-  @IsString()
-  OPENWA_BANK_ACCOUNT_ID?: string;
+  TELEGRAM_BANK_ACCOUNT_ID?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

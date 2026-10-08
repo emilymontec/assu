@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { WhatsAppResponderAdapter } from '../receipt-ingestion/adapters/whatsapp-responder.adapter';
+import { TelegramResponderAdapter } from '../receipt-ingestion/adapters/telegram-responder.adapter';
 import { RECEIPT_CHANNEL_RESPONDER_PORT } from '../../core/ports/receipt-channel-responder.port';
-import { OpenWaClientModule } from '../open-wa-client/open-wa-client.module';
+import { TelegramClientModule } from '../telegram-client/telegram-client.module';
 
 /**
  * Aísla el binding de `RECEIPT_CHANNEL_RESPONDER_PORT` igual que
@@ -11,8 +11,8 @@ import { OpenWaClientModule } from '../open-wa-client/open-wa-client.module';
  * necesitan, y uno no debe depender del otro.
  */
 @Module({
-  imports: [OpenWaClientModule],
-  providers: [{ provide: RECEIPT_CHANNEL_RESPONDER_PORT, useClass: WhatsAppResponderAdapter }],
+  imports: [TelegramClientModule],
+  providers: [{ provide: RECEIPT_CHANNEL_RESPONDER_PORT, useClass: TelegramResponderAdapter }],
   exports: [RECEIPT_CHANNEL_RESPONDER_PORT],
 })
 export class ReceiptChannelResponderModule {}

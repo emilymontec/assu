@@ -3,7 +3,7 @@ import { BankAccountService } from '../bank-account/bank-account.service';
 import { BankService } from '../bank/bank.service';
 import { AdapterFactoryService } from '../bank-adapter/adapter-factory.service';
 import { SessionManagerService } from '../session-manager/session-manager.service';
-import { CollectorAdapter, ExportedSession } from '../../core/ports/collector-adapter.interface';
+import { BankAdapter, ExportedSession } from '../../core/ports/bank-adapter.interface';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
 import { InvalidCredentialsError } from '../../common/errors/permanent.error';
 import { AuditService } from '../audit/audit.service';
@@ -29,7 +29,7 @@ export class LoginManagerService {
    * credenciales", "detectar sesión expirada" e "intentar renovar/reiniciar
    * sesión" del roadmap.
    */
-  async ensureLoggedIn(accountId: string): Promise<CollectorAdapter> {
+  async ensureLoggedIn(accountId: string): Promise<BankAdapter> {
     const { account } = await this.bankAccountService.findById(accountId); // 404 si no existe
     const bank = await this.bankService.findById(account.bankId);
 
@@ -65,7 +65,7 @@ export class LoginManagerService {
   }
 
   /** Cubre "cerrar sesión": libera los recursos del adapter e invalida la sesión guardada. */
-  async logout(accountId: string, adapter: CollectorAdapter): Promise<void> {
+  async logout(accountId: string, adapter: BankAdapter): Promise<void> {
     try {
       await adapter.logout();
       await this.sessionManager.invalidate(accountId);
@@ -77,7 +77,7 @@ export class LoginManagerService {
     }
   }
 
-  private async performLogin(accountId: string, adapter: CollectorAdapter): Promise<void> {
+  private async performLogin(accountId: string, adapter: BankAdapter): Promise<void> {
     const credentials = await this.bankAccountService.getDecryptedCredentials(accountId);
 
     try {

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString, Matches } from 'class-validator';
-import { CollectorType } from '../../../core/domain/bank/bank-status.enum';
+import { IntegrationType } from '../../../core/domain/bank/bank-status.enum';
 
 export class CreateBankDto {
   @ApiProperty({ example: 'Nequi' })
@@ -15,9 +15,9 @@ export class CreateBankDto {
   })
   country!: string;
 
-  @ApiProperty({ enum: CollectorType, example: CollectorType.WEB_SCRAPING })
-  @IsEnum(CollectorType)
-  collectorType!: CollectorType;
+  @ApiProperty({ enum: IntegrationType, example: IntegrationType.WEB_SCRAPING })
+  @IsEnum(IntegrationType)
+  integrationType!: IntegrationType;
 
   @ApiProperty({
     example: 'nequi',
