@@ -13,13 +13,12 @@
 <p align="center">
   <a href="./docs/#">Backend</a> ·
   <a href="./docs/#">Dashboard</a> ·
-  <a href="./docs/#">Testing Guide</a> ·
   <a href="./docs/#">Banks Setup</a>
 </p>
 
 <p align="center">
   <img alt="tests" src="https://img.shields.io/badge/backend-typescript-38A793?style=flat-square" />
-  <img alt="stack" src="https://img.shields.io/badge/frontend-Next.js-38A793?style=flat-square" />
+  <img alt="stack" src="https://img.shields.io/badge/frontend-next.js-38A793?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/database-supabase-38A793?style=flat-square" />
 </p>
 
@@ -217,7 +216,7 @@ Everything else in the diagram above is implemented and tested — the reconcili
 ## Links
 
 - [Testing Guide](./docs/#)
-- [Nequi Adapter Setup](./docs/#)
+- [Bank Adapter Setup](./docs/#)
 - [Backend Information](./docs/#)
 - [Administrator Panel](./docs/#)
 
