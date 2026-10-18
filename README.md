@@ -210,7 +210,7 @@ The browser never sees `ASSU_BACKEND_API_KEY`. Every request goes to a relative 
 | Docker-isolated scraping, verified end-to-end | `DockerIsolatedAdapter` and the container entrypoint are implemented and unit-tested, but the image itself hasn't been built or run against a real bank yet. |
 
 Everything else in the diagram above is implemented and tested — the reconciliation engine, the state machine, Telegram ingestion, and the admin panel all run end-to-end against a real database and queue.
-
+<!--
 ---
 
 ## Links
@@ -219,7 +219,7 @@ Everything else in the diagram above is implemented and tested — the reconcili
 - [Bank Adapter Setup](./docs/#)
 - [Backend Information](./docs/#)
 - [Administrator Panel](./docs/#)
-
+-->
 ---
 
 ## Author
@@ -247,7 +247,7 @@ If you want to know more about the system, please check the [Documentation](docs
 </div>
 
 <p align="center">
-  <strong>A receipt is a claim.<br>
-  A bank movement is the evidence.<br>
-  Assu only says "verified" when both agree.</strong>
+  <strong>a receipt is a claim.<br>
+  a bank movement is the evidence.<br>
+  assu only says "verified" when both agree.</strong>
 </p>
