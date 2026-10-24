@@ -4,8 +4,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex">
       <SidebarNav />
-      <main className="h-screen flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-6 py-6">{children}</div>
+      <main className="h-screen flex-1 overflow-y-auto bg-background">
+        <div className="mx-auto max-w-[1360px] px-8 py-8">{children}</div>
       </main>
     </div>
   );

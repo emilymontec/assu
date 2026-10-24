@@ -54,8 +54,8 @@ export default function MonitoringPage() {
         description="Alertas operativas y auditoría de operaciones sensibles de Assu."
       />
 
-      <div className="mb-6">
-        <h2 className="mb-2 text-sm font-medium">Alertas recientes</h2>
+      <div className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Alertas recientes</h2>
         {alertsNotImplemented && <NotImplementedYet endpoint="GET /alerts" module="Monitoring & Alerts" />}
         {alerts && (
           <Table>
@@ -96,7 +96,7 @@ export default function MonitoringPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium">Auditoría reciente</h2>
+        <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Auditoría reciente</h2>
         {auditNotImplemented && <NotImplementedYet endpoint="GET /audit-logs" module="Audit" />}
         {auditLogs && (
           <Table>

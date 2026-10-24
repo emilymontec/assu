@@ -43,7 +43,7 @@ function ReconnectForm({ accountId, onDone }: { accountId: string; onDone: (mess
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+    <div className="space-y-3 rounded-xl border border-border bg-surface-2 p-4">
       <p className="text-xs text-muted-foreground">
         Credenciales nuevas en texto plano (se cifran al guardarlas):
       </p>
@@ -51,7 +51,7 @@ function ReconnectForm({ accountId, onDone }: { accountId: string; onDone: (mess
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={4}
-        className="w-full rounded-md border border-border bg-background p-2 font-mono text-xs"
+        className="w-full rounded-lg border border-border bg-background p-2.5 font-mono text-xs"
       />
       {error && <p className="text-xs text-danger">{error}</p>}
       <Button size="sm" onClick={submit} disabled={busy}>

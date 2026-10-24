@@ -18,6 +18,13 @@
     --muted: 160 12% 95%;
     --muted-foreground: 160 8% 42%;
     --border: 160 12% 89%;
+    /* Hairline más claro que --border — cabeceras de tabla, separadores
+       internos de card (equivalente a --color-border-light del sistema
+       Editorial Bento). */
+    --border-light: 160 12% 93%;
+    /* Blanco "alt" apenas gris-verdoso — fondo de thead, tiles
+       secundarios — nunca tan oscuro como --muted. */
+    --surface-2: 160 14% 97%;
 
     /* #38A793 — teal de marca de Assu */
     --accent: 169 50% 44%;

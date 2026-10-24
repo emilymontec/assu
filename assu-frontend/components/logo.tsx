@@ -16,7 +16,7 @@ interface LogoProps {
 export function Logo({ className, compact = false, surface = 'dark' }: LogoProps) {
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-accent">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-accent shadow-accent">
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
           <path
             d="M5 12.5L9.5 17L19 6.5"

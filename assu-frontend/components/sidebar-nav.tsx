@@ -23,16 +23,20 @@ const NAV_ITEMS = [
   { href: '/monitoring', label: 'Monitoreo', icon: ShieldAlert },
 ];
 
+// Riel lateral oscuro: el único lugar donde el panel usa la superficie
+// "bento negra" de la plantilla — ítems en pill (radio completo) y
+// estado activo con relleno sólido en el teal de marca (en vez del tinte
+// sutil de antes), igual que .nav-item.active en layout.css.
 export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-60 flex-col bg-ink text-white">
-      <div className="border-b border-ink-border px-4 py-4">
+    <aside className="flex h-screen w-64 flex-col bg-ink text-white">
+      <div className="border-b border-ink-border px-5 py-5">
         <Logo />
       </div>
 
-      <nav className="flex-1 space-y-0.5 p-3">
+      <nav className="flex-1 space-y-1 p-3">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -41,13 +45,16 @@ export function SidebarNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
+                'group flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-white/55 hover:bg-white/5 hover:text-white',
+                  ? 'bg-accent text-white shadow-accent'
+                  : 'text-white/55 hover:bg-white/8 hover:text-white',
               )}
             >
-              <Icon className="h-4 w-4" strokeWidth={1.75} />
+              <Icon
+                className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-110"
+                strokeWidth={1.75}
+              />
               {item.label}
             </Link>
           );
@@ -57,9 +64,12 @@ export function SidebarNav() {
       <div className="border-t border-ink-border p-3">
         <Link
           href="/settings"
-          className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-white/55 hover:bg-white/5 hover:text-white"
+          className="group flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-white/55 transition-all duration-150 hover:bg-white/8 hover:text-white"
         >
-          <Settings className="h-4 w-4" strokeWidth={1.75} />
+          <Settings
+            className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-110"
+            strokeWidth={1.75}
+          />
           Configuración
         </Link>
       </div>
