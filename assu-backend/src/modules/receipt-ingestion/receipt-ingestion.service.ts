@@ -20,8 +20,8 @@ import { InvalidReceiptFileError } from '../receipt-processing/receipt-processin
  * (fotos/documentos), descarga y valida el adjunto, crea el
  * `PaymentSubmission` de forma idempotente y encola su procesamiento.
  *
- * Nota de arquitectura: igual que con open-wa antes, no hay un webhook
- * HTTP público — `onModuleInit` se suscribe directamente a los mensajes
+ * Nota de arquitectura: no hay un webhook HTTP público —
+ * `onModuleInit` se suscribe directamente a los mensajes
  * del bot a través de `TelegramClientService` (long-polling). No hay
  * webhook controller que registrar porque no hay endpoint que
  * falsificar — el propio proceso de Assu es el cliente de Telegram.

@@ -11,14 +11,13 @@ export type TelegramIncomingMessage = Message.PhotoMessage | Message.DocumentMes
  * `ReceiptIngestionService` (para recibir) y `TelegramResponderAdapter`
  * (para responder) hablan con este servicio, nunca con `Telegraf`
  * directamente. Si algún día se cambia de canal, solo este archivo y
- * `TelegramResponderAdapter` deberían cambiar (mismo principio que
- * aplicaba antes con `OpenWaClientService`).
+ * `TelegramResponderAdapter` deberían cambiar.
  *
- * A diferencia de open-wa, Telegram usa la Bot API oficial de Telegram
- * (gratuita, sin límite de mensajes, sin riesgo de bloqueo por
- * automatización): no hay sesión de navegador que mantener viva ni QR
- * que escanear. El bot se autentica con un token fijo (`TELEGRAM_BOT_TOKEN`)
- * obtenido una sola vez vía @BotFather.
+ * Telegram usa la Bot API oficial de Telegram (gratuita, sin límite de
+ * mensajes, sin riesgo de bloqueo por automatización): no hay sesión
+ * de navegador que mantener viva ni QR que escanear. El bot se
+ * autentica con un token fijo (`TELEGRAM_BOT_TOKEN`) obtenido una sola
+ * vez vía @BotFather.
  *
  * Modo de arranque: `launch()` usa long-polling por defecto (no
  * requiere HTTPS público ni dominio) — suficiente para producción en
@@ -60,9 +59,9 @@ export class TelegramClientService implements OnModuleInit, OnModuleDestroy {
         throw err;
       });
 
-    // No se espera aquí (`await this.ready`) a propósito: igual que con
-    // open-wa, el arranque del resto de Assu (detección de movimientos,
-    // API interna, etc.) no debe depender de que Telegram esté listo.
+    // No se espera aquí (`await this.ready`) a propósito: el arranque
+    // del resto de Assu (detección de movimientos, API interna, etc.)
+    // no debe depender de que Telegram esté listo.
     this.ready.catch(() => undefined);
   }
 
@@ -84,11 +83,10 @@ export class TelegramClientService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Descarga el archivo de mayor resolución de una foto, o el documento
-   * adjunto, y lo devuelve como buffer + mime type. A diferencia de
-   * open-wa (que entrega el adjunto ya descifrado como data URL),
-   * Telegram expone una URL temporal (`getFileLink`) que hay que
-   * descargar manualmente — no hay cifrado E2E que descifrar porque
-   * Telegram Bot API no usa el cifrado de Telegram "secret chats".
+   * adjunto, y lo devuelve como buffer + mime type. Telegram expone
+   * una URL temporal (`getFileLink`) que hay que descargar
+   * manualmente — no hay cifrado E2E que descifrar porque Telegram Bot
+   * API no usa el cifrado de Telegram "secret chats".
    */
   async downloadMedia(message: TelegramIncomingMessage): Promise<{ buffer: Buffer; mimeType: string }> {
     const bot = await this.whenReady();
