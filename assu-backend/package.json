@@ -70,7 +70,10 @@
   },
   "pnpm": {
     "neverBuiltDependencies": [
-      "@nestjs/core"
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
     ]
   },
   "jest": {
