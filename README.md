@@ -38,7 +38,7 @@ Assu is two cooperating services:
 | **Receipt Verification** | Receives receipts over Telegram, runs OCR, and reconciles the extracted amount/reference/time against real bank movements. |
 | **Reconciliation Engine** | Deterministic scoring (reference + amount + time window) → `EXACT_MATCH`, `PROBABLE_MATCH`, `AMBIGUOUS_MATCH`, `NO_MATCH`, or `PENDING`. No ML, no guessing. |
 | **Audited State Machine** | `RECEIVED → PROCESSING → PENDING_MOVEMENT → MATCHING → VERIFIED/REJECTED/AMBIGUOUS/ERROR/MANUAL_REVIEW`. Every transition is logged with an actor and a reason. |
-| **Telegram Ingestion** | Built on [Telegraf](https://telegraf.js.org) and the official Telegram Bot API — free, no message limits, no ban risk from unofficial automation (the reason open-wa/WhatsApp Web automation was dropped). |
+| **Telegram Ingestion** | Built on [Telegraf](https://telegraf.js.org) and the official Telegram Bot API — free, no message limits, no ban risk from unofficial automation (the reason WhatsApp Web automation was dropped). |
 | **Administrator Panel** | Next.js ops dashboard: banks, accounts, movements, sync history, monitoring. |
 
 ---
@@ -141,14 +141,18 @@ docker compose -f docker/docker-compose.yml up -d postgres redis
 
 corepack enable
 pnpm install
-cp .env.example .env       # set INTERNAL_API_KEY, OCR_PROVIDER, OPENWA_* as needed
+cp .env.example .env       # set INTERNAL_API_KEY, OCR_PROVIDER, TELEGRAM_* as needed
 
 pnpm run prisma:generate
 pnpm run prisma:migrate:dev
 
-pnpm test                  # 254 tests
+pnpm test                  # unit tests
 pnpm run start:dev         # API on :3000, docs on :3000/docs
 ```
+
+> **Windows (PowerShell):** `cp` works as-is (PowerShell aliases it to
+> `Copy-Item`); in plain `cmd.exe` use `copy .env.example .env` instead.
+> Everything else above runs unchanged in PowerShell.
 
 ### Modules
 
@@ -186,8 +190,12 @@ cd assu-frontend
 pnpm install
 cp .env.example .env.local   # ASSU_BACKEND_API_URL, ASSU_BACKEND_API_KEY
 
-pnpm run dev -- -p 3001      # backend already owns :3000
+pnpm run dev -- -p 3100      # backend already owns :3000
 ```
+
+> Run the backend and frontend **in two separate terminals** — both
+> `start:dev`/`dev` and `start`/`start:prod` are long-running processes
+> that never return control to the shell.
 
 ### Security note
 

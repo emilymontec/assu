@@ -1,7 +1,7 @@
 {
   "name": "assu-backend",
   "version": "0.1.0",
-  "description": "Assu - Microservicio de adquisición de información bancaria",
+  "description": "Assu - Microservicio de adquisici\u00f3n de informaci\u00f3n bancaria",
   "author": "Assu",
   "private": true,
   "license": "UNLICENSED",
@@ -11,10 +11,14 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
+    "prebuild": "node scripts/ensure-prisma-client.js",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
+    "prestart": "node scripts/ensure-prisma-client.js",
     "start": "nest start",
+    "prestart:dev": "node scripts/ensure-prisma-client.js",
     "start:dev": "nest start --watch",
+    "prestart:debug": "node scripts/ensure-prisma-client.js",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"src/**/*.ts\" --fix",

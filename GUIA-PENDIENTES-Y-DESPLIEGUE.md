@@ -5,6 +5,14 @@
 > final. Sigue el orden de las secciones — cada una depende de la
 > anterior.
 
+> **Si estás en Windows:** corre todo esto en **PowerShell**, no en
+> `cmd.exe` — `cp` solo funciona en PowerShell (ahí es un alias de
+> `Copy-Item`; en `cmd.exe` usa `copy` en su lugar). Los comandos
+> `curl` de este documento están en una sola línea a propósito: el `\`
+> de continuación de bash no funciona ni en PowerShell ni en cmd.exe.
+> Backend y frontend corren en **dos terminales separadas** — ambos
+> quedan en primer plano y nunca devuelven el control a la shell.
+
 ---
 
 ## 1. Puntos pendientes (paso a paso)
@@ -56,13 +64,18 @@ Riesgo ya identificado a validar primero: el PIN de Bancolombia usa
 teclado virtual — `page.fill()` probablemente no sirva ahí.
 
 ### 1.6 Generar las claves de seguridad
+`openssl` no viene instalado por defecto en Windows, así que usa Node
+(ya lo tienes instalado para correr el proyecto) — funciona igual en
+bash, PowerShell o cmd.exe:
 ```bash
 # Clave de cifrado de credenciales bancarias (AES-256-GCM)
-openssl rand -hex 32   # → CREDENTIALS_ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # → CREDENTIALS_ENCRYPTION_KEY
 
 # API key interna (protege todos los endpoints del backend)
-openssl rand -hex 24   # → INTERNAL_API_KEY (backend) = ASSU_BACKEND_API_KEY (frontend)
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"   # → INTERNAL_API_KEY (backend) = ASSU_BACKEND_API_KEY (frontend)
 ```
+(En Linux/Mac con OpenSSL instalado, `openssl rand -hex 32` /
+`openssl rand -hex 24` funcionan igual de bien.)
 
 Con esto completo, pasa a la sección 2 para configurar el entorno real.
 
@@ -157,9 +170,11 @@ un contenedor desechable):
 docker build -t assu-backend-scraper:latest -f docker/scraper/Dockerfile .
 ```
 
-Verifica que levantó bien:
+Verifica que levantó bien (reemplaza `TU_API_KEY` por el valor real de
+`INTERNAL_API_KEY` que pusiste en `.env` — funciona igual en bash,
+PowerShell o cmd.exe):
 ```bash
-curl -H "x-api-key: $INTERNAL_API_KEY" http://localhost:3000/status
+curl -H "x-api-key: TU_API_KEY" http://localhost:3000/status
 ```
 
 ### 3.2 Frontend
@@ -196,24 +211,28 @@ accesible públicamente (o por IP allowlist) desde Vercel.
 Esta sección simula el flujo completo: un comercio recibe un pago por
 Nequi/Daviplata y su cliente manda el comprobante por Telegram.
 
+> Los comandos `curl` de esta sección van en **una sola línea** a
+> propósito (el `\` de continuación de bash no funciona en PowerShell
+> ni en cmd.exe) — reemplaza `TU_API_KEY` por el valor real de
+> `INTERNAL_API_KEY`.
+
 ### 4.1 Registrar el banco
 ```bash
-curl -X POST http://localhost:3000/banks \
-  -H "Content-Type: application/json" -H "x-api-key: $INTERNAL_API_KEY" \
-  -d '{"name":"Nequi","adapterKey":"nequi","country":"CO","integrationType":"WEB_SCRAPING"}'
+curl -X POST http://localhost:3000/banks -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"name\":\"Nequi\",\"adapterKey\":\"nequi\",\"country\":\"CO\",\"integrationType\":\"WEB_SCRAPING\"}"
 ```
 
 ### 4.2 Registrar la cuenta bancaria del comercio
 ```bash
-curl -X POST http://localhost:3000/bank-accounts \
-  -H "Content-Type: application/json" -H "x-api-key: $INTERNAL_API_KEY" \
-  -d '{
-    "bankId": "<id del banco creado en 4.1>",
-    "merchantId": "mi-negocio-demo",
-    "accountNumber": "3001234567",
-    "credentials": { "phone": "3001234567", "pin": "1234" }
-  }'
+curl -X POST http://localhost:3000/bank-accounts -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"bankId\":\"<id del banco creado en 4.1>\",\"merchantId\":\"mi-negocio-demo\",\"accountNumber\":\"3001234567\",\"credentials\":{\"phone\":\"3001234567\",\"pin\":\"1234\"}}"
 ```
+> En PowerShell, si el comando de arriba da error de parseo del JSON,
+> es el escapado de comillas — la alternativa más confiable en Windows
+> es `Invoke-RestMethod`:
+> ```powershell
+> Invoke-RestMethod -Method Post -Uri http://localhost:3000/bank-accounts `
+>   -Headers @{ "x-api-key" = "TU_API_KEY" } -ContentType "application/json" `
+>   -Body (@{ bankId = "<id del banco creado en 4.1>"; merchantId = "mi-negocio-demo"; accountNumber = "3001234567"; credentials = @{ phone = "3001234567"; pin = "1234" } } | ConvertTo-Json)
+> ```
 Copia el `id` de la cuenta que devuelve la respuesta.
 
 ### 4.3 Conectar la cuenta al bot de Telegram
@@ -229,14 +248,11 @@ Reinicia el backend para que tome el cambio.
 2. Espera al intervalo de sincronización (`DEFAULT_SYNC_INTERVAL_SECONDS`,
    60s por default) o fuerza una sincronización manual:
    ```bash
-   curl -X POST http://localhost:3000/sync \
-     -H "x-api-key: $INTERNAL_API_KEY" \
-     -d '{"bankAccountId": "<id de 4.2>"}'
+   curl -X POST http://localhost:3000/sync -H "x-api-key: TU_API_KEY" -d "{\"bankAccountId\": \"<id de 4.2>\"}"
    ```
 3. Confirma que el movimiento quedó guardado:
    ```bash
-   curl "http://localhost:3000/movements?accountId=<id de 4.2>" \
-     -H "x-api-key: $INTERNAL_API_KEY"
+   curl "http://localhost:3000/movements?accountId=<id de 4.2>" -H "x-api-key: TU_API_KEY"
    ```
 
 ### 4.5 Probar la verificación de comprobante (lado cliente final)
@@ -248,8 +264,7 @@ Reinicia el backend para que tome el cambio.
 3. En 10-30 segundos (según el tamaño de la imagen y el OCR), el
    sistema procesa el comprobante. Verifica el resultado:
    ```bash
-   curl "http://localhost:3000/payment-verifications?bankAccountId=<id de 4.2>" \
-     -H "x-api-key: $INTERNAL_API_KEY"
+   curl "http://localhost:3000/payment-verifications?bankAccountId=<id de 4.2>" -H "x-api-key: TU_API_KEY"
    ```
    El `status` debería ser:
    - `VERIFIED` — el monto/referencia del comprobante coincidió con el
@@ -259,7 +274,7 @@ Reinicia el backend para que tome el cambio.
    - `UNVERIFIED` — el comprobante no pudo validarse
 
 ### 4.6 Probar desde el panel de administración (frontend)
-1. Abre el frontend desplegado (o `http://localhost:3001` en local).
+1. Abre el frontend desplegado (o `http://localhost:3100` en local).
 2. **Bancos** → confirma que Nequi aparece como `ACTIVE`.
 3. **Cuentas** → confirma la cuenta creada en 4.2 y su última
    sincronización.

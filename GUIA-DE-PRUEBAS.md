@@ -5,6 +5,12 @@ pnpm y Docker instalados. Corre todos los comandos **en tu máquina**, no
 en un sandbox sin acceso a `binaries.prisma.sh` — Prisma necesita
 descargar su motor de query engine la primera vez.
 
+> **Si estás en Windows:** usá **PowerShell** (no `cmd.exe`) — `cp` es
+> un alias de `Copy-Item` ahí, pero no existe en `cmd.exe` (usa `copy`
+> en su lugar). Backend y frontend corren en **dos terminales
+> separadas**: `pnpm run start:dev` y `pnpm dev` quedan en primer plano
+> y nunca devuelven el control a la shell.
+
 ---
 
 ## 1. Infraestructura local (Postgres + Redis)
@@ -205,9 +211,8 @@ sistema lo procese:
    curl "http://localhost:3000/payment-verifications/<id>/events" -H "x-api-key: TU_API_KEY"
 
    # Forzar una revisión manual (verificarlo a mano, como haría un operador)
-   curl -X POST "http://localhost:3000/payment-verifications/<id>/manual-review" \
-     -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
-     -d '{"toStatus":"VERIFIED","reason":"Confirmado manualmente en prueba","actor":"tu-nombre@assu.app"}'
+   # (una sola línea a propósito — el "\" de bash no funciona en PowerShell/cmd.exe)
+   curl -X POST "http://localhost:3000/payment-verifications/<id>/manual-review" -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"toStatus\":\"VERIFIED\",\"reason\":\"Confirmado manualmente en prueba\",\"actor\":\"tu-nombre@assu.app\"}"
    ```
 
 4. Para probar el motor de conciliación de forma aislada y rápida (sin
@@ -305,15 +310,7 @@ exigen `confirmedReadOnlyCredentials: true` en el body — si lo omites o
 lo mandas en `false`, la API responde `400`:
 
 ```bash
-curl -X POST http://localhost:3000/bank-accounts \
-  -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
-  -d '{
-    "bankId": "<id de un banco creado antes>",
-    "merchantId": "assu-demo",
-    "accountNumber": "3001234567",
-    "credentials": {"phone": "3001234567", "pin": "1234"},
-    "confirmedReadOnlyCredentials": true
-  }'
+curl -X POST http://localhost:3000/bank-accounts -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"bankId\":\"<id de un banco creado antes>\",\"merchantId\":\"assu-demo\",\"accountNumber\":\"3001234567\",\"credentials\":{\"phone\":\"3001234567\",\"pin\":\"1234\"},\"confirmedReadOnlyCredentials\":true}"
 ```
 
 ### 6.2 Cifrado con AWS KMS (opcional, requiere una cuenta de AWS)
