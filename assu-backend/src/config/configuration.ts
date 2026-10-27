@@ -92,9 +92,8 @@ export default () => ({
     // simplemente no arranca).
     botToken: process.env.TELEGRAM_BOT_TOKEN ?? null,
     // El bot de Telegram recibe mensajes de cualquier chat que le
-    // escriba — a diferencia de un número de WhatsApp dedicado, aquí no
-    // hay forma de que el mensaje "diga" a qué cuenta del comercio
-    // pertenece. Para este sistema, cada bot está dedicado a una sola
+    // escriba — no hay forma de que el mensaje "diga" a qué cuenta del
+    // comercio pertenece. Para este sistema, cada bot está dedicado a una sola
     // cuenta bancaria, configurada acá. Si se necesitan varios
     // comercios, se despliega un bot (token) por comercio.
     bankAccountId: process.env.TELEGRAM_BANK_ACCOUNT_ID ?? null,

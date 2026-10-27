@@ -127,7 +127,7 @@ model Movement {
 // ─────────────────────────────────────────────────────────────────────
 // Verificación de comprobantes (Payment Verification)
 //
-// Representa el flujo: comprobante recibido (WhatsApp/API) → OCR →
+// Representa el flujo: comprobante recibido (Telegram/API) → OCR →
 // conciliación contra `Movement` → estado final. Vive en tablas propias,
 // separadas de `Movement`, para no acoplar la detección bancaria (que
 // no sabe nada de comprobantes) con la verificación de pagos (que no
@@ -175,7 +175,7 @@ model PaymentSubmission {
   id      String            @id @default(uuid())
   channel SubmissionChannel
 
-  // Id del mensaje/evento en el canal de origen (ej. WhatsApp message id).
+  // Id del mensaje/evento en el canal de origen (ej. Telegram message id).
   // Junto con `channel` da idempotencia real ante reintentos/reentregas
   // del webhook: un mismo mensaje jamás crea dos submissions.
   externalMessageId String? @map("external_message_id")
@@ -205,7 +205,7 @@ model PaymentSubmission {
   matchedMovement Movement?           @relation(fields: [matchedMovementId], references: [id])
   events          VerificationEvent[]
 
-  // Idempotencia ante reentregas del webhook (WhatsApp/otros reintentan
+  // Idempotencia ante reentregas del canal (Telegram/otros reintentan
   // si no reciben 200 a tiempo).
   @@unique([channel, externalMessageId], name: "uniq_channel_external_message")
   @@index([fileHash])
