@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -16,13 +16,25 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
   providers: [
     {
       provide: REDIS_CLIENT,
-      useFactory: (configService: ConfigService) =>
-        new Redis({
+      useFactory: (configService: ConfigService) => {
+        const logger = new Logger('RedisModule');
+        const client = new Redis({
           host: configService.get<string>('redis.host'),
           port: configService.get<number>('redis.port'),
           password: configService.get<string>('redis.password'),
           tls: configService.get<string>('redis.host')?.includes('upstash') ? {} : undefined,
-        }),
+          retryStrategy: (times) => Math.min(times * 500, 5000),
+        });
+
+        client.on('error', (err) => {
+          logger.error(`Error de conexión con Redis: ${err.message}`);
+        });
+        client.on('ready', () => {
+          logger.log('Conexión a Redis establecida');
+        });
+
+        return client;
+      },
       inject: [ConfigService],
     },
   ],
