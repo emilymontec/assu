@@ -69,4 +69,7 @@ export const api = {
   alerts: {
     list: (params?: URLSearchParams) => request(`/alerts${params ? `?${params}` : ''}`),
   },
+  settings: {
+    get: () => request('/settings'),
+  },
 };

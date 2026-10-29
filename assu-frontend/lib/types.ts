@@ -114,3 +114,31 @@ export interface Alert {
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
+
+/**
+ * Respuesta de `GET /settings` — configuración operativa de solo
+ * lectura (módulo Admin/Operations). Nunca trae secretos, solo
+ * booleanos de presencia para claves/tokens/proxy.
+ */
+export interface SystemSettings {
+  app: { name: string; env: string; version: string };
+  security: { encryptionProvider: 'local' | 'aws-kms'; keyRotationInProgress: boolean };
+  scheduler: { defaultSyncIntervalSeconds: number };
+  rateLimiting: { maxRequestsPerBankPerMinute: number; minSecondsBetweenAccountSyncs: number };
+  scraping: {
+    isolationMode: 'in-process' | 'docker';
+    dockerImage: string | null;
+    headless: boolean;
+    timeoutMs: number;
+    proxyConfigured: boolean;
+  };
+  monitoring: {
+    accountStaleThresholdMinutes: number;
+    errorRateWindowMinutes: number;
+    errorRateThreshold: number;
+    errorRateMinSampleSize: number;
+    cooldownMinutes: number;
+  };
+  integrations: { ocrProvider: string; telegramConfigured: boolean; eventsStreamName: string };
+  timestamp: string;
+}

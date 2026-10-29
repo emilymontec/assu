@@ -32,6 +32,7 @@ import { StatusModule } from './modules/status/status.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { PaymentVerificationModule } from './modules/payment-verification/payment-verification.module';
 import { ReceiptIngestionModule } from './modules/receipt-ingestion/receipt-ingestion.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { ReceiptIngestionModule } from './modules/receipt-ingestion/receipt-inge
     MonitoringModule,
     PaymentVerificationModule,
     ReceiptIngestionModule,
+    SettingsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
