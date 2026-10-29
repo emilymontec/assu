@@ -24,9 +24,8 @@ const NAV_ITEMS = [
 ];
 
 // Riel lateral oscuro: el único lugar donde el panel usa la superficie
-// "bento negra" de la plantilla — ítems en pill (radio completo) y
-// estado activo con relleno sólido en el teal de marca (en vez del tinte
-// sutil de antes), igual que .nav-item.active en layout.css.
+// "bento negra" de la plantilla — ítems con radio chico y estado activo
+// en el teal de marca, sin efectos de escala ni sombras.
 export function SidebarNav() {
   const pathname = usePathname();
 
@@ -36,7 +35,7 @@ export function SidebarNav() {
         <Logo />
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-0.5 p-3">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -45,16 +44,13 @@ export function SidebarNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'group flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150',
+                'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150',
                 isActive
-                  ? 'bg-accent text-white shadow-accent'
+                  ? 'bg-accent text-white'
                   : 'text-white/55 hover:bg-white/8 hover:text-white',
               )}
             >
-              <Icon
-                className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-110"
-                strokeWidth={1.75}
-              />
+              <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
               {item.label}
             </Link>
           );
@@ -64,12 +60,9 @@ export function SidebarNav() {
       <div className="border-t border-ink-border p-3">
         <Link
           href="/settings"
-          className="group flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-white/55 transition-all duration-150 hover:bg-white/8 hover:text-white"
+          className="group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/55 transition-colors duration-150 hover:bg-white/8 hover:text-white"
         >
-          <Settings
-            className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-110"
-            strokeWidth={1.75}
-          />
+          <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           Configuración
         </Link>
       </div>

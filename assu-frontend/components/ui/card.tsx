@@ -1,16 +1,12 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-// Tarjeta "bento": radio grande (24px), sombra larga y difusa en vez del
-// borde chato + sin sombra de antes — con un leve levantamiento al hover
-// como en las .card/.dash-card de la plantilla Editorial Bento.
+// Tarjeta plana: borde de 1px sobre superficie blanca, radio contenido y
+// sin elevación. El minimalismo separa por línea, no por sombra.
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'rounded-bento border border-border bg-card shadow-bento transition-shadow duration-200 hover:shadow-bento-hover',
-        className,
-      )}
+      className={cn('rounded-bento border border-border bg-card', className)}
       {...props}
     />
   );

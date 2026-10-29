@@ -57,24 +57,22 @@ const config: Config = {
         // (títulos de página), nunca para texto de cuerpo o tablas.
         display: ['var(--font-display)', 'var(--font-sans)', 'system-ui', 'sans-serif'],
       },
-      // Escala de radios "bento": tiles con esquinas marcadamente
-      // redondeadas (24–28px) en vez del radio chico típico de un admin
-      // panel — tomada 1:1 de --radius-* en la plantilla Editorial Bento.
+      // Radios contenidos: el estilo minimalista se apoya en bordes finos
+      // y esquinas apenas redondeadas, no en tiles con radio grande.
       borderRadius: {
-        sm: '6px',
-        md: '10px',
-        lg: '16px',
-        xl: '20px',
-        '2xl': '28px',
-        bento: '24px',
+        sm: '3px',
+        md: '6px',
+        lg: '8px',
+        xl: '10px',
+        '2xl': '12px',
+        bento: '10px',
       },
-      // Sombras largas y difusas (en vez de sombras chicas por defecto de
-      // Tailwind) — así es como la plantilla logra que las tarjetas se
-      // sientan "flotando" sobre el canvas.
+      // Sombras casi imperceptibles: la separación la da el borde, no la
+      // elevación. Se conservan los tokens para no romper los componentes.
       boxShadow: {
-        bento: '0 12px 32px -10px rgb(14 22 19 / 0.10)',
-        'bento-hover': '0 20px 42px -12px rgb(14 22 19 / 0.16)',
-        accent: '0 8px 22px -4px rgb(56 167 147 / 0.35)',
+        bento: '0 1px 2px 0 rgb(14 22 19 / 0.04)',
+        'bento-hover': '0 1px 2px 0 rgb(14 22 19 / 0.06)',
+        accent: '0 1px 2px 0 rgb(56 167 147 / 0.20)',
       },
       fontSize: {
         xs: ['12px', '16px'],

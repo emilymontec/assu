@@ -1,19 +1,18 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-// Pill badge con un punto de "estado" en currentColor, al estilo
-// .badge/.pill-badge de la plantilla Editorial Bento (radio completo,
-// tipografía chica y pesada, antes que un tag rectangular).
+// Badge sobrio: radio chico, sin relleno de color pleno y un punto de
+// estado en currentColor para transmitir el tono sin ruido visual.
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide before:h-1.5 before:w-1.5 before:shrink-0 before:rounded-full before:bg-current before:opacity-70',
+  'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium before:h-1.5 before:w-1.5 before:shrink-0 before:rounded-full before:bg-current',
   {
     variants: {
       variant: {
-        default: 'bg-muted text-muted-foreground',
-        success: 'bg-success/10 text-success',
-        warning: 'bg-warning/10 text-warning',
-        danger: 'bg-danger/10 text-danger',
-        accent: 'bg-accent/10 text-accent',
+        default: 'border-border bg-muted/60 text-muted-foreground',
+        success: 'border-success/25 bg-success/5 text-success',
+        warning: 'border-warning/25 bg-warning/5 text-warning',
+        danger: 'border-danger/25 bg-danger/5 text-danger',
+        accent: 'border-accent/25 bg-accent/5 text-accent',
       },
     },
     defaultVariants: { variant: 'default' },

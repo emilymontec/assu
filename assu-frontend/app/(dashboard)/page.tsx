@@ -10,10 +10,8 @@ import { cn } from '@/lib/utils';
 import type { SystemStatus } from '@/lib/types';
 
 /**
- * Tile "bento" de soporte: ícono en chip + valor grande + nota — la
- * variante de MetricCard de antes, reescrita al lenguaje visual de la
- * plantilla Editorial Bento (radio 24px, sombra larga, levantamiento al
- * hover) pero con los mismos datos de SystemStatus.
+ * Tile de soporte minimalista: ícono en chip + valor + nota. Mismos datos
+ * de SystemStatus, resueltos con borde fino y sin elevación.
  */
 function KpiTile({
   label,
@@ -29,10 +27,10 @@ function KpiTile({
   tone?: 'danger' | 'accent';
 }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-bento border border-border bg-card p-5 shadow-bento transition-all duration-200 hover:-translate-y-0.5 hover:shadow-bento-hover">
+    <div className="flex h-full flex-col gap-3 rounded-bento border border-border bg-card p-5">
       <div
         className={cn(
-          'flex h-10 w-10 items-center justify-center rounded-xl',
+          'flex h-9 w-9 items-center justify-center rounded-md',
           tone === 'danger'
             ? 'bg-danger/10 text-danger'
             : tone === 'accent'
@@ -43,8 +41,8 @@ function KpiTile({
         <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </div>
       <div>
-        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-1 text-[28px] font-extrabold leading-none tracking-tight text-foreground">{value}</p>
+        <p className="text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="mt-1 text-[26px] font-bold leading-none tracking-tight text-foreground">{value}</p>
       </div>
       {note && <p className="mt-auto text-xs text-muted-foreground">{note}</p>}
     </div>
@@ -73,18 +71,8 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-12">
         {/* Hero tile — estado general del sistema, la única superficie
-            oscura "bento" fuera del riel lateral. */}
-        <div className="relative overflow-hidden rounded-2xl bg-ink p-8 text-white shadow-bento sm:col-span-7">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{
-              backgroundImage: 'radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-              backgroundSize: '20px 20px',
-              maskImage: 'linear-gradient(120deg, #000 0%, transparent 60%)',
-              WebkitMaskImage: 'linear-gradient(120deg, #000 0%, transparent 60%)',
-            }}
-          />
+            oscura fuera del riel lateral. */}
+        <div className="relative overflow-hidden rounded-bento bg-ink p-7 text-white sm:col-span-7">
           <div className="relative flex items-center gap-2">
             <span
               className={cn(
@@ -95,32 +83,32 @@ export default function OverviewPage() {
                 error && 'bg-danger',
               )}
             />
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">
               {error ? 'Sin conexión con el backend' : status ? (isOk ? 'Sistema operativo' : 'Sistema degradado') : 'Consultando estado…'}
             </span>
           </div>
 
-          <p className="relative mt-6 text-[2.5rem] font-extrabold leading-none tracking-tight sm:text-[3.1rem]">
+          <p className="relative mt-5 text-[2.25rem] font-bold leading-none tracking-tight sm:text-[2.75rem]">
             {status ? `${status.accounts.ACTIVE}/${status.accounts.total}` : '—'}
           </p>
           <p className="relative mt-2 max-w-sm text-sm leading-relaxed text-white/55">
             cuentas bancarias activas, de un total de {status ? status.accounts.total : '—'} conectadas a Assu.
           </p>
 
-          <div className="relative mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 pt-5 text-[11px] font-medium text-white/45">
+          <div className="relative mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 pt-4 text-[11px] font-medium text-white/45">
             <span>GET /status</span>
             <span>{status ? new Date(status.timestamp).toLocaleString('es-CO') : 'esperando datos'}</span>
           </div>
         </div>
 
         {/* Highlight tile — cuentas que requieren reconexión, en el teal
-            de marca a pantalla completa (el acento "bento" del dashboard). */}
-        <div className="relative flex flex-col overflow-hidden rounded-2xl bg-accent p-7 text-white shadow-bento sm:col-span-5">
+            de marca a pantalla completa. */}
+        <div className="relative flex flex-col overflow-hidden rounded-bento bg-accent p-7 text-white sm:col-span-5">
           <ShieldAlert className="h-5 w-5 text-white/70" strokeWidth={1.75} />
-          <p className="mt-5 text-5xl font-extrabold leading-none tracking-tight">
+          <p className="mt-4 text-4xl font-bold leading-none tracking-tight">
             {status ? status.accountsNeedingReconnection : '—'}
           </p>
-          <h3 className="mt-3 text-base font-bold">Cuentas requieren reconexión</h3>
+          <h3 className="mt-3 text-sm font-bold">Cuentas requieren reconexión</h3>
           <p className="mt-1 text-xs leading-relaxed text-white/75">
             Credenciales vencidas o sesión inválida — revisa Cuentas bancarias para reconectarlas.
           </p>
@@ -179,7 +167,7 @@ export default function OverviewPage() {
             </div>
 
             {error && (
-              <p className="rounded-xl bg-muted px-4 py-3 text-xs text-muted-foreground">
+              <p className="rounded-lg bg-muted px-4 py-3 text-xs text-muted-foreground">
                 No se pudo conectar con <code className="rounded bg-background px-1">ASSU_BACKEND_API_URL</code>.
                 Verifica que el backend esté corriendo (
                 <code className="rounded bg-background px-1">npm run start:dev</code> en{' '}

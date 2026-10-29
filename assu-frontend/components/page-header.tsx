@@ -7,23 +7,22 @@ interface PageHeaderProps {
   className?: string;
 }
 
-// Encabezado "editorial": título grande en Folty Bold (display) con
-// tracking apretado, separado del contenido por un hairline — al estilo
-// .page-header/.dash-head de la plantilla Editorial Bento, en vez del
-// título chico de antes que casi no usaba la fuente de marca.
+// Encabezado plano: título en Folty Bold con tracking apretado y una
+// descripción breve, separados del contenido por un hairline. Sin
+// adornos: la jerarquía la da el tamaño, no el color ni la sombra.
 export function PageHeader({ title, description, action, className }: PageHeaderProps) {
   return (
     <div
       className={cn(
-        'mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-border-light pb-6',
+        'mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border-light pb-5',
         className,
       )}
     >
       <div>
-        <h1 className="font-display text-[1.65rem] leading-[1.05] tracking-tight text-foreground sm:text-[2.05rem]">
+        <h1 className="font-display text-[1.5rem] leading-tight tracking-tight text-foreground sm:text-[1.85rem]">
           {title}
         </h1>
-        {description && <p className="mt-2 max-w-xl text-sm text-muted-foreground">{description}</p>}
+        {description && <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">{description}</p>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-3">{action}</div>}
     </div>

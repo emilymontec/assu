@@ -1,13 +1,11 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-// Tabla envuelta como tarjeta bento (radio grande + sombra larga) en vez
-// del contenedor chato con borde fino de antes — cabecera en superficie
-// "alt", mayúsculas con tracking amplio, como .dash-table de la
-// plantilla Editorial Bento.
+// Tabla plana: borde de 1px, radio contenido y cabecera apenas teñida.
+// La lectura manda — sin sombras ni contenedores elevados.
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-hidden rounded-bento border border-border bg-card shadow-bento">
+    <div className="w-full overflow-hidden rounded-bento border border-border bg-card">
       <div className="w-full overflow-x-auto">
         <table className={cn('w-full caption-bottom text-sm', className)} {...props} />
       </div>
@@ -31,7 +29,7 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
   return (
     <th
       className={cn(
-        'h-11 px-4 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+        'h-10 px-4 text-left align-middle text-[11px] font-medium uppercase tracking-wide text-muted-foreground',
         className,
       )}
       {...props}
