@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
@@ -16,15 +17,20 @@ import { UpdateCredentialsDto } from './dto/update-credentials.dto';
 import { ListBankAccountsQueryDto } from './dto/list-bank-accounts-query.dto';
 import { AccountStatus } from '../../core/domain/bank-account/account-status.enum';
 import { AuditService } from '../audit/audit.service';
+import { MERCHANT_NOTIFIER_PORT, MerchantNotifierPort } from '../../core/ports/merchant-notifier.port';
+import { NotificationType } from '../../core/domain/notification/notification-type.enum';
 
 @Injectable()
 export class BankAccountService {
+  private readonly logger = new Logger(BankAccountService.name);
+
   constructor(
     private readonly repository: BankAccountRepository,
     private readonly bankService: BankService,
     private readonly configService: ConfigService,
     @Inject(ENCRYPTION_PORT) private readonly encryption: EncryptionPort,
     private readonly auditService: AuditService,
+    @Inject(MERCHANT_NOTIFIER_PORT) private readonly merchantNotifier: MerchantNotifierPort,
   ) {}
 
   async create(dto: CreateBankAccountDto): Promise<BankAccountWithBankName> {
@@ -46,6 +52,18 @@ export class BankAccountService {
       credentialsReadOnlyConfirmed: dto.confirmedReadOnlyCredentials,
       syncIntervalSeconds: dto.syncIntervalSeconds ?? defaultInterval,
     });
+
+    // Best-effort: si el merchantId no corresponde a un comercio
+    // registrado en el Portal (ej. cuentas cargadas antes de que
+    // existiera, o de un flujo administrativo que no pasa por ahí), el
+    // notifier simplemente no encuentra a quién avisar — no debe tumbar
+    // la creación de la cuenta, que ya se guardó correctamente.
+    await this.safeNotifyMerchant(
+      dto.merchantId,
+      NotificationType.BANK_ACCOUNT_ADDED,
+      { accountId: account.id, bankName: bank.name, accountNumber: account.accountNumber },
+      `Agregaste una cuenta nueva del banco ${bank.name} (••••${account.accountNumber.slice(-4)}).`,
+    );
 
     return { account, bankName: bank.name };
   }
@@ -102,9 +120,17 @@ export class BankAccountService {
   }
 
   async suspend(id: string): Promise<BankAccountWithBankName> {
-    await this.findById(id);
+    const { account, bankName } = await this.findById(id);
     await this.repository.updateStatus(id, AccountStatus.SUSPENDED);
     await this.auditService.logAdminOperation('SUSPEND', 'BankAccount', id, 'api');
+
+    await this.safeNotifyMerchant(
+      account.merchantId,
+      NotificationType.BANK_ACCOUNT_REMOVED,
+      { accountId: id, bankName },
+      `Se eliminó/suspendió tu cuenta del banco ${bankName} (••••${account.accountNumber.slice(-4)}). Si no fuiste tú, contacta a soporte.`,
+    );
+
     return this.findById(id);
   }
 
@@ -182,5 +208,25 @@ export class BankAccountService {
     }
     const decrypted = await this.encryption.decrypt(account.encryptedCredentials);
     return JSON.parse(decrypted) as Record<string, string>;
+  }
+
+  /**
+   * Notificar al comercio es una operación secundaria: si falla (ej. el
+   * merchantId no corresponde a ningún comercio registrado en el
+   * Portal, o el correo no se pudo enviar), NUNCA debe tumbar la
+   * operación principal que ya se completó con éxito — mismo principio
+   * que audit logging/métricas en el resto del sistema.
+   */
+  private async safeNotifyMerchant(
+    merchantId: string,
+    type: NotificationType,
+    metadata: Record<string, unknown>,
+    message: string,
+  ): Promise<void> {
+    try {
+      await this.merchantNotifier.notify({ merchantId, type, message, metadata });
+    } catch (err) {
+      this.logger.warn(`No se pudo notificar al comercio ${merchantId} (${type}): ${err}`);
+    }
   }
 }

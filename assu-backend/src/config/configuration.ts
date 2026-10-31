@@ -120,4 +120,47 @@ export default () => ({
     // config con PLAYWRIGHT_PROXY_* dentro del contenedor.
     dockerNetwork: process.env.SCRAPER_DOCKER_NETWORK || undefined,
   },
+  auth: {
+    // Firma los JWT de sesión del Portal de Comercios (módulo nuevo,
+    // separado de INTERNAL_API_KEY: ese protege la Internal API
+    // servicio-a-servicio/admin; este protege a cada comercio individual).
+    jwtSecret: process.env.AUTH_JWT_SECRET,
+    jwtExpiresIn: process.env.AUTH_JWT_EXPIRES_IN ?? '12h',
+    // Minutos de validez del código de 6 dígitos enviado por correo en el
+    // login (segundo factor). Pasado esto, hay que pedir uno nuevo.
+    emailCodeExpiryMinutes: parseInt(process.env.AUTH_EMAIL_CODE_EXPIRY_MINUTES ?? '10', 10),
+    // Minutos de validez de la aprobación "¿eres tú?" que ve un
+    // dispositivo YA de confianza cuando se intenta iniciar sesión desde
+    // uno nuevo (el otro camino del segundo factor, además del correo).
+    deviceApprovalExpiryMinutes: parseInt(process.env.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES ?? '5', 10),
+  },
+  email: {
+    // 'console' (default): no envía nada de verdad, solo deja el correo
+    // en el log — sirve para desarrollar sin credenciales SMTP. 'smtp':
+    // envía de verdad vía SMTP_* (cualquier proveedor: Resend, SES,
+    // Gmail con contraseña de aplicación, Mailgun, etc.).
+    provider: process.env.EMAIL_PROVIDER ?? 'console',
+    from: process.env.SMTP_FROM ?? 'Assu <no-reply@assu.local>',
+    smtp: {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+      user: process.env.SMTP_USER,
+      password: process.env.SMTP_PASSWORD,
+    },
+  },
+  documentPhotos: {
+    // Mismo patrón que `receipts.storagePath`: adapter de referencia en
+    // disco local, listo para cambiarse por un adapter de object storage
+    // (S3/GCS) implementando el mismo DocumentPhotoStoragePort. A
+    // diferencia de los recibos, el contenido se cifra con el mismo
+    // EncryptionPort de credenciales antes de tocar el disco — es un
+    // documento de identidad, no un comprobante de pago.
+    storagePath: process.env.DOCUMENT_PHOTOS_STORAGE_PATH ?? './storage/document-photos',
+  },
+  portal: {
+    // Usado para construir el link que ve un dispositivo de confianza
+    // cuando se le pide aprobar un inicio de sesión nuevo, y los enlaces
+    // de los correos de notificación.
+    appUrl: process.env.PORTAL_APP_URL ?? 'http://localhost:3100',
+  },
 });

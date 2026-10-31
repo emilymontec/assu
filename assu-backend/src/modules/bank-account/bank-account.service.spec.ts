@@ -60,6 +60,7 @@ describe('BankAccountService', () => {
   const configService = { get: jest.fn().mockReturnValue(60) };
   const encryption = { encrypt: jest.fn(), decrypt: jest.fn() };
   const auditService = { logConfigChange: jest.fn(), logAdminOperation: jest.fn() };
+  const merchantNotifier = { notify: jest.fn() };
 
   function buildService() {
     return new BankAccountService(
@@ -68,6 +69,7 @@ describe('BankAccountService', () => {
       configService as any,
       encryption as any,
       auditService as any,
+      merchantNotifier as any,
     );
   }
 
@@ -140,6 +142,31 @@ describe('BankAccountService', () => {
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ syncIntervalSeconds: 30 }));
   });
 
+  it('notifica al comercio cuando se agrega una cuenta nueva', async () => {
+    bankService.findById.mockResolvedValue(makeBank());
+    encryption.encrypt.mockResolvedValue('fp:ct');
+    repository.create.mockResolvedValue(makeAccount());
+    const service = buildService();
+
+    await service.create({ bankId: 'bank-1', merchantId: 'merchant-1', accountNumber: '3001234567', credentials: { u: 'a' }, confirmedReadOnlyCredentials: true });
+
+    expect(merchantNotifier.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ merchantId: 'merchant-1', type: 'BANK_ACCOUNT_ADDED' }),
+    );
+  });
+
+  it('no tumba la creación de la cuenta si notificar al comercio falla', async () => {
+    bankService.findById.mockResolvedValue(makeBank());
+    encryption.encrypt.mockResolvedValue('fp:ct');
+    repository.create.mockResolvedValue(makeAccount());
+    merchantNotifier.notify.mockRejectedValue(new Error('comercio no encontrado'));
+    const service = buildService();
+
+    await expect(
+      service.create({ bankId: 'bank-1', merchantId: 'merchant-sin-portal', accountNumber: '123', credentials: { u: 'a' }, confirmedReadOnlyCredentials: true }),
+    ).resolves.toBeDefined();
+  });
+
   it('bloquea reactivar una cuenta que requiere reautenticación', async () => {
     repository.findByIdWithBank.mockResolvedValue({
       account: makeAccount({ status: AccountStatus.REAUTH_REQUIRED }),
@@ -175,6 +202,9 @@ describe('BankAccountService', () => {
     expect(repository.updateStatus).toHaveBeenCalledWith('acc-1', AccountStatus.SUSPENDED);
     expect(auditService.logAdminOperation).toHaveBeenCalledWith('SUSPEND', 'BankAccount', 'acc-1', 'api');
     expect(result.account.status).toBe(AccountStatus.SUSPENDED);
+    expect(merchantNotifier.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ merchantId: 'merchant-1', type: 'BANK_ACCOUNT_REMOVED' }),
+    );
   });
 
   it('enableSync()/disableSync() auditan el cambio como CONFIG_CHANGE', async () => {

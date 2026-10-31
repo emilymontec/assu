@@ -133,6 +133,60 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   TELEGRAM_BANK_ACCOUNT_ID?: string;
+
+  // ── Portal de Comercios: autenticación ──────────────────────────
+  @IsString()
+  @Matches(/^.{32,}$/, { message: 'AUTH_JWT_SECRET debe tener al menos 32 caracteres. Generar con: openssl rand -hex 32' })
+  AUTH_JWT_SECRET!: string;
+
+  @IsOptional()
+  @IsString()
+  AUTH_JWT_EXPIRES_IN?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  AUTH_EMAIL_CODE_EXPIRY_MINUTES?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES?: number;
+
+  // ── Portal de Comercios: correo y foto de documento ─────────────
+  @IsOptional()
+  @IsIn(['console', 'smtp'])
+  EMAIL_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_FROM?: string;
+
+  // Requeridos solo con EMAIL_PROVIDER=smtp (con 'console', que es el
+  // default, nada de esto hace falta — el correo solo se registra en el log).
+  @ValidateIf((o) => o.EMAIL_PROVIDER === 'smtp')
+  @IsString()
+  SMTP_HOST?: string;
+
+  @IsOptional()
+  @IsInt()
+  SMTP_PORT?: number;
+
+  @ValidateIf((o) => o.EMAIL_PROVIDER === 'smtp')
+  @IsString()
+  SMTP_USER?: string;
+
+  @ValidateIf((o) => o.EMAIL_PROVIDER === 'smtp')
+  @IsString()
+  SMTP_PASSWORD?: string;
+
+  @IsOptional()
+  @IsString()
+  DOCUMENT_PHOTOS_STORAGE_PATH?: string;
+
+  @IsOptional()
+  @IsString()
+  PORTAL_APP_URL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -151,6 +205,16 @@ export function validateEnv(config: Record<string, unknown>) {
         : undefined,
     SCRAPER_ISOLATION_MODE: config.SCRAPER_ISOLATION_MODE || undefined,
     ENCRYPTION_PROVIDER: config.ENCRYPTION_PROVIDER || undefined,
+    EMAIL_PROVIDER: config.EMAIL_PROVIDER || undefined,
+    AUTH_EMAIL_CODE_EXPIRY_MINUTES:
+      config.AUTH_EMAIL_CODE_EXPIRY_MINUTES !== undefined && config.AUTH_EMAIL_CODE_EXPIRY_MINUTES !== ''
+        ? Number(config.AUTH_EMAIL_CODE_EXPIRY_MINUTES)
+        : undefined,
+    AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES:
+      config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES !== undefined && config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES !== ''
+        ? Number(config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES)
+        : undefined,
+    SMTP_PORT: config.SMTP_PORT !== undefined && config.SMTP_PORT !== '' ? Number(config.SMTP_PORT) : undefined,
   };
 
   const validated = plainToInstance(EnvironmentVariables, normalized, {

@@ -317,3 +317,137 @@ model SyncLog {
   @@index([accountId, startedAt])
   @@map("sync_logs")
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Portal de Comercios: autenticación, dispositivos de confianza y
+// notificaciones. Deliberadamente en tablas propias, separadas de
+// BankAccount/Bank (que siguen sin saber nada de "quién inició sesión"
+// — `BankAccount.merchantId` sigue siendo el identificador libre que ya
+// usaban Bank Account Management/Internal API; en la práctica debe
+// coincidir con `Merchant.id` de un comercio registrado acá, pero no se
+// agrega una FK para no acoplar ambos módulos ni arriesgar la migración
+// de datos ya cargados con merchantId "legacy" que no vengan de este flujo).
+// ─────────────────────────────────────────────────────────────────────
+
+enum DocumentType {
+  CC // Cédula de ciudadanía
+  CE // Cédula de extranjería
+  NIT
+  PASAPORTE
+}
+
+enum MerchantStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+model Merchant {
+  id                     String         @id @default(uuid())
+  documentType           DocumentType   @map("document_type")
+  documentNumber         String         @map("document_number")
+  fullName               String         @map("full_name")
+  email                  String         @unique
+  phone                  String
+  passwordHash           String         @map("password_hash")
+  // Referencia OPACA al archivo (mismo patrón que PaymentSubmission.fileStorageRef),
+  // cuyo contenido además viaja cifrado en disco — ver DocumentPhotoStoragePort.
+  documentPhotoStorageRef String        @map("document_photo_storage_ref")
+  status                 MerchantStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt        DateTime?      @map("email_verified_at")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+
+  trustedDevices  TrustedDevice[]
+  loginChallenges LoginChallenge[]
+  notifications   Notification[]
+
+  // Un mismo documento de identidad no puede registrar dos cuentas.
+  @@unique([documentType, documentNumber], name: "uniq_document_type_number")
+  @@map("merchants")
+}
+
+model TrustedDevice {
+  id             String    @id @default(uuid())
+  merchantId     String    @map("merchant_id")
+  // sha256 de un id de dispositivo generado client-side + User-Agent —
+  // nunca el User-Agent crudo ni nada que por sí solo identifique al
+  // dispositivo fuera de este sistema.
+  fingerprint    String
+  label          String // ej. "Chrome en Windows — agregado el 12 oct"
+  lastUsedAt     DateTime  @default(now()) @map("last_used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  revokedAt      DateTime? @map("revoked_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([merchantId, fingerprint], name: "uniq_merchant_fingerprint")
+  @@map("trusted_devices")
+}
+
+enum LoginChallengeType {
+  EMAIL_CODE
+  DEVICE_APPROVAL
+}
+
+enum LoginChallengeStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+}
+
+/// Representa UN intento de login pendiente de segundo factor. Un mismo
+/// intento (mismo `attemptId`) puede tener dos challenges en paralelo —
+/// EMAIL_CODE y DEVICE_APPROVAL — y basta con que CUALQUIERA de los dos
+/// se apruebe para completar el login (ver AuthService.completeLogin).
+model LoginChallenge {
+  id                 String               @id @default(uuid())
+  attemptId          String               @map("attempt_id")
+  merchantId         String               @map("merchant_id")
+  type               LoginChallengeType
+  // sha256 del código de 6 dígitos (EMAIL_CODE) o de un token aleatorio
+  // (DEVICE_APPROVAL) — nunca el valor en texto plano.
+  // Solo aplica a EMAIL_CODE (hash del código de 6 dígitos); DEVICE_APPROVAL
+  // no tiene secreto propio — se aprueba con la sesión YA autenticada del
+  // otro dispositivo, no con un código, así que queda null.
+  secretHash         String?              @map("secret_hash")
+  // Fingerprint del dispositivo NUEVO que está intentando entrar —
+  // el que queda marcado como de confianza si este challenge se aprueba.
+  newDeviceFingerprint String              @map("new_device_fingerprint")
+  newDeviceLabel     String               @map("new_device_label")
+  status             LoginChallengeStatus @default(PENDING)
+  expiresAt          DateTime             @map("expires_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([attemptId])
+  @@index([merchantId, status])
+  @@map("login_challenges")
+}
+
+enum NotificationType {
+  NEW_LOGIN
+  BANK_ACCOUNT_ADDED
+  BANK_ACCOUNT_REMOVED
+}
+
+/// Centro de notificaciones del comercio en el Portal — persiste lo
+/// mismo que se le envía por correo, para que quede visible dentro de
+/// la app aunque el correo se pierda o llegue a spam.
+model Notification {
+  id         String           @id @default(uuid())
+  merchantId String           @map("merchant_id")
+  type       NotificationType
+  message    String
+  metadata   Json?
+  emailSentAt DateTime?       @map("email_sent_at")
+  readAt     DateTime?        @map("read_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, createdAt])
+  @@map("notifications")
+}
