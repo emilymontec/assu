@@ -234,7 +234,7 @@ cd assu-frontend
 pnpm install
 cp .env.example .env.local   # ASSU_BACKEND_API_URL, ASSU_BACKEND_API_KEY
 
-pnpm run dev -- -p 3100      # backend already owns :3000
+pnpm run dev                 # :3100 (backend already owns :3000)
 ```
 
 > Run the backend and frontend **in two separate terminals** — both

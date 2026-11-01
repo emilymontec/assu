@@ -79,10 +79,12 @@ Una vez que veas `successfully started`, el backend está listo en `http://local
 **En una terminal Git Bash separada**, dentro de `assu-frontend`:
 
 ```bash
-pnpm dev -- -p 3100
+pnpm dev
 ```
 
-(el backend ya ocupa el puerto 3000, por eso el `-p 3100` explícito — `npx next dev` sin ese flag arrancaría en el 3000 y chocaría con el backend)
+El puerto `3100` ya viene fijo en `package.json` (el backend ocupa el
+3000) — no uses `npx next dev` directo, ese sí arrancaría en el 3000 y
+chocaría con el backend.
 
 **Esperado:**
 ```

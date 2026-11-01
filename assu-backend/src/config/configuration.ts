@@ -161,6 +161,6 @@ export default () => ({
     // Usado para construir el link que ve un dispositivo de confianza
     // cuando se le pide aprobar un inicio de sesión nuevo, y los enlaces
     // de los correos de notificación.
-    appUrl: process.env.PORTAL_APP_URL ?? 'http://localhost:3100',
+    appUrl: process.env.PORTAL_APP_URL ?? 'http://localhost:3300',
   },
 });

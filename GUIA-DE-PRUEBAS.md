@@ -139,11 +139,12 @@ ASSU_BACKEND_API_KEY=TU_API_KEY   # el mismo valor que INTERNAL_API_KEY del back
 
 ### 3.2 Levantar el frontend
 
-El backend ya ocupa el puerto 3000, así que arranca el admin en otro:
-
 ```bash
-pnpm dev -- -p 3100
+pnpm dev
 ```
+
+El puerto `3100` ya viene fijo en `package.json` (el backend ocupa el
+3000), así que no hace falta pasar `-p` a mano.
 
 Abre `http://localhost:3100`. Todo lo que hagas ahí (ver bancos, cuentas,
 movimientos, etc.) debería reflejar exactamente lo que ves por Swagger/curl

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * ASSU_BACKEND_API_KEY — nunca se manda al cliente.
  */
 
-const ASSU_BACKEND_API_URL = process.env.ASSU_BACKEND_API_URL ?? 'http://localhost:3100';
+const ASSU_BACKEND_API_URL = process.env.ASSU_BACKEND_API_URL ?? 'http://localhost:3000';
 const ASSU_BACKEND_API_KEY = process.env.ASSU_BACKEND_API_KEY ?? '';
 
 async function proxy(req: NextRequest, path: string[]) {
