@@ -1,17 +1,27 @@
+# Dependencias e instalación
 node_modules/
-dist/
 .pnpm-store/
-.env
-*.log
-coverage/
-.DS_Store
-/prisma/*.db
-playwright-report/
-test-results/
-node_modules/
+
+# Next.js (assu-frontend, assu-home, assu-portal)
 .next/
 out/
-.env.local
+
+# NestJS (assu-backend)
+dist/
+
+# Archivos locales / build incremental de TypeScript
+*.tsbuildinfo
 .env
+.env.local
 *.log
-.pnpm-store/
+
+# Tests y cobertura
+coverage/
+playwright-report/
+test-results/
+
+# Datos locales de desarrollo (SQLite de pruebas, fotos de documentos cifradas, recibos)
+/assu-backend/prisma/*.db
+/assu-backend/storage/
+
+.DS_Store

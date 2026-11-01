@@ -1,0 +1,17 @@
+packages:
+  - 'assu-backend'
+  - 'assu-frontend'
+  - 'assu-home'
+  - 'assu-portal'
+  - 'packages/*'
+
+# Movido desde assu-backend/package.json: pnpm solo respeta esta
+# opción en la raíz del workspace, y con assu-backend como un
+# proyecto más del workspace ya no tenía efecto ahí (pnpm lo avisaba
+# en cada install).
+neverBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - 'prisma'
+  - 'tesseract.js'

@@ -79,8 +79,10 @@ Una vez que veas `successfully started`, el backend está listo en `http://local
 **En una terminal Git Bash separada**, dentro de `assu-frontend`:
 
 ```bash
-npx next dev
+pnpm dev -- -p 3100
 ```
+
+(el backend ya ocupa el puerto 3000, por eso el `-p 3100` explícito — `npx next dev` sin ese flag arrancaría en el 3000 y chocaría con el backend)
 
 **Esperado:**
 ```
@@ -178,3 +180,12 @@ curl -H "x-api-key: TU_API_KEY" http://localhost:3000/status
 - **Dos terminales:** una para backend, otra para frontend — jamás en la misma
 - **Si `pnpm prisma:generate` abre CMD y no funciona** → usa `npx prisma generate` en su lugar
 - **Si algo falla**, revisa que `pnpm-lock.yaml` y `node_modules` existan — si no, corre `pnpm install` de nuevo
+
+---
+
+## 7. Portal de Comercios y landing pública
+
+Esta guía solo cubre backend + panel admin. El portal de comercios
+(`assu-portal`, puerto 3300) y la landing pública (`assu-home`, puerto
+3200) son dos apps más del mismo monorepo, con su propio quickstart en
+el [README.md](./README.md) de la raíz.

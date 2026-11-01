@@ -40,6 +40,30 @@ Assu is two cooperating services:
 | **Audited State Machine** | `RECEIVED → PROCESSING → PENDING_MOVEMENT → MATCHING → VERIFIED/REJECTED/AMBIGUOUS/ERROR/MANUAL_REVIEW`. Every transition is logged with an actor and a reason. |
 | **Telegram Ingestion** | Built on [Telegraf](https://telegraf.js.org) and the official Telegram Bot API — free, no message limits, no ban risk from unofficial automation (the reason WhatsApp Web automation was dropped). |
 | **Administrator Panel** | Next.js ops dashboard: banks, accounts, movements, sync history, monitoring. |
+| **Merchant Portal** | Self-service Next.js app: a merchant registers with their ID document, connects their own bank accounts, and gets notified (email + in-app) of logins and account changes. |
+| **Public Landing** | The marketing front door — explains Assu and links out to the Merchant Portal to register or sign in. |
+
+### Repo layout
+
+This is a pnpm workspace: four apps plus one shared package, each independently runnable.
+
+```text
+assu/
+├── assu-backend/      NestJS API — detection, verification, reconciliation (see below)
+├── assu-frontend/     Admin panel (internal, API-key auth)
+├── assu-portal/       Merchant portal (per-merchant accounts, JWT + 2FA)
+├── assu-home/         Public landing page
+└── packages/
+    └── assu-ui/       Shared design system (tokens, Button/Card/Badge/Input, fonts) — consumed by
+                        assu-frontend, assu-home and assu-portal so brand changes happen in one place
+```
+
+```bash
+corepack enable
+pnpm install            # installs all four apps + assu-ui from the repo root, once
+```
+
+Each app still has its own `dev`/`build` scripts and its own quickstart below — `pnpm install` at the root just wires them together as a single workspace instead of four unrelated `node_modules`.
 
 ---
 
@@ -63,6 +87,26 @@ The engine that detects movements and verifies receipts. A NestJS microservice w
 A Next.js panel that consumes the backend's Internal API — view accounts, force a sync, review a flagged payment.
 
 **[→ Jump to frontend setup](#admin-panel-assu-frontend)**
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<h3> I want merchants to sign up themselves</h3>
+
+The self-service portal: ID-document registration, encrypted document photo, password + two-step login (email code or an already-trusted device), notifications on access and account changes.
+
+**[→ Jump to portal setup](#merchant-portal-assu-portal)**
+
+</td>
+<td width="50%" valign="top">
+
+<h3> I need a public landing page</h3>
+
+The marketing page that explains Assu and sends people to the Merchant Portal to register or sign in. No backend of its own.
+
+**[→ Jump to landing setup](#public-landing-assu-home)**
 
 </td>
 </tr>
@@ -204,8 +248,63 @@ The browser never sees `ASSU_BACKEND_API_KEY`. Every request goes to a relative 
 ### Brand
 
 - Color: `#38A793` — token `--accent`, used consistently across cards, badges, and the sidebar's active states.
-- Logo: **Backline** (real brand font, `app/fonts/Backline.otf`) — wordmark only, never body text.
-- Display font: **Folty Bold** (`app/fonts/Folty-Bold.woff2`) — page titles only; only the Bold cut exists, so body/table text stays on Manrope for legibility at small sizes.
+- Logo: **Backline** (real brand font) — wordmark only, never body text.
+- Display font: **Folty Bold** — page titles only; only the Bold cut exists, so body/table text stays on Manrope for legibility at small sizes.
+
+All three come from `packages/assu-ui` (see below), shared with the Merchant Portal and the landing page.
+
+---
+
+## Merchant Portal (`assu-portal`)
+
+<img alt="stack" src="https://img.shields.io/badge/Next.js-14-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/TailwindCSS-3.4-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/JWT-2FA-38A793?style=flat-square" />
+
+A separate app from the admin panel on purpose: merchants get their own accounts (JWT), the admin panel stays on the internal API key, and neither can be reached through the other's login.
+
+### Quickstart
+
+```bash
+cd assu-portal
+pnpm install
+cp .env.example .env.local   # ASSU_BACKEND_API_URL
+
+pnpm run dev                 # :3300 (backend on :3000, admin panel on :3100, landing on :3200)
+```
+
+### What it covers
+
+- **Registration** — ID document type/number, required personal data, a photo of the document (encrypted at rest, same adapter pattern as `ReceiptStoragePort`).
+- **Two-step login** — a new device triggers both an email code *and* a "yes, this is me" approval from an already-trusted device, like Google's own prompt; either one completes the login.
+- **Notifications** — email + in-app, on every new login and every bank account added or removed.
+
+---
+
+## Public Landing (`assu-home`)
+
+<img alt="stack" src="https://img.shields.io/badge/Next.js-14-38A793?style=flat-square" />
+<img alt="stack" src="https://img.shields.io/badge/TailwindCSS-3.4-38A793?style=flat-square" />
+
+A single static marketing page. No database, no API calls of its own — "Sign in" / "Create account" just link out to `assu-portal`.
+
+### Quickstart
+
+```bash
+cd assu-home
+pnpm install
+cp .env.example .env.local   # NEXT_PUBLIC_PORTAL_URL, default already points at :3300
+
+pnpm run dev                 # :3200
+```
+
+---
+
+## Shared UI (`packages/assu-ui`)
+
+The design system — color/type/radius tokens, `Button`/`Badge`/`Card`/`Input`, the `Logo`, and the three brand fonts — lives once in this workspace package and is consumed by `assu-frontend`, `assu-portal`, and `assu-home` (via `transpilePackages` in each app's `next.config.mjs`). Changing a brand color or the logo mark is a one-file edit, not three.
+
+It has no build step — each app transpiles it straight from source — so there's nothing to run here directly; it's installed automatically by `pnpm install` at the repo root.
 
 ---
 
