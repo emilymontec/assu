@@ -5,13 +5,8 @@ packages:
   - 'assu-portal'
   - 'packages/*'
 
-# Movido desde assu-backend/package.json: pnpm solo respeta esta
-# opción en la raíz del workspace, y con assu-backend como un
-# proyecto más del workspace ya no tenía efecto ahí (pnpm lo avisaba
-# en cada install).
-neverBuiltDependencies:
-  - '@nestjs/core'
-  - '@prisma/client'
-  - '@prisma/engines'
-  - 'prisma'
-  - 'tesseract.js'
+# NOTA: `neverBuiltDependencies` NO se lee desde pnpm-workspace.yaml en pnpm 9.
+# Debe ir en el campo "pnpm" del package.json de la RAÍZ (ver package.json).
+# Si se deja aquí, pnpm ejecuta igual los postinstall (p. ej. el `opencollective`
+# de @nestjs/core y tesseract.js), que hacen peticiones de red y dejan la
+# instalación "congelada" al final.
