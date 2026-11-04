@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { HeroGraphic } from '@/components/hero-graphic';
 import { cn } from '@/lib/utils';
 
-const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'http://localhost:3100';
+const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'http://localhost:3300';
 
 const BANKS = ['Nequi', 'Bancolombia', 'Davivienda'];
 
