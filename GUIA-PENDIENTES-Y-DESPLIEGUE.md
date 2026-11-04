@@ -8,20 +8,24 @@
 ## 1. Configuración previa (una sola vez)
 
 ### 1.1 Backend — Regenerar lockfile
-Abre **Git Bash** en la carpeta `assu-backend`:
+Abre **PowerShell** en la carpeta `assu-backend`:
 
-```bash
+```powershell
 cd assu-backend
 pnpm install
 ```
 
 Esto descarga/actualiza todas las dependencias y regenera `pnpm-lock.yaml`. Si ves `Packages: -16` (o similar), es normal — significa que quitó referencias al paquete viejo `@open-wa/wa-automate`.
 
-### 1.2 Backend — Generar cliente de Prisma
-Todavía en Git Bash, en `assu-backend`:
+> **Si parece congelado, no lo está.** pnpm no imprime progreso en todos los
+> terminales. Corre `pnpm install --reporter=append-only` para ver el avance
+> paquete por paquete.
 
-```bash
-npx prisma generate
+### 1.2 Backend — Generar cliente de Prisma
+Todavía en PowerShell, en `assu-backend`:
+
+```powershell
+pnpm run prisma:generate
 ```
 
 Verifica que salga:
@@ -30,19 +34,14 @@ Verifica que salga:
 ```
 
 ### 1.3 Backend — Primera migración
-```bash
-pnpm prisma:migrate:dev --name init
-```
-
-O si `pnpm` te abre un CMD que no responde, usa:
-```bash
-npx prisma migrate dev --name init
+```powershell
+pnpm run prisma:migrate:dev --name init
 ```
 
 ### 1.4 Frontend — Regenerar lockfile
-Abre una **nueva terminal Git Bash** en la carpeta `assu-frontend`:
+Abre una **nueva terminal PowerShell** en la carpeta `assu-frontend`:
 
-```bash
+```powershell
 cd assu-frontend
 pnpm install
 ```
@@ -51,10 +50,10 @@ pnpm install
 
 ## 2. Levantar Backend (para desarrollo)
 
-En Git Bash, dentro de `assu-backend`, asegúrate de haber hecho los pasos 1.1–1.3 arriba:
+En PowerShell, dentro de `assu-backend`, asegúrate de haber hecho los pasos 1.1–1.3 arriba:
 
-```bash
-npx nest start --watch
+```powershell
+pnpm run start:dev
 ```
 
 **Esperado:**
@@ -68,9 +67,8 @@ npx nest start --watch
 Una vez que veas `successfully started`, el backend está listo en `http://localhost:3000`.
 
 **Si da error `Could not determine executable to run`:**
-- Verifica que estés en Git Bash, no PowerShell/CMD
-- Verifica que `node_modules` exista (`pnpm install` completó)
-- Intenta con: `node node_modules/.bin/nest start --watch`
+- Verifica que `node_modules` exista y que `pnpm install` haya terminado por completo
+- Intenta con: `pnpm exec nest start --watch`
 
 ---
 
@@ -139,17 +137,17 @@ ASSU_BACKEND_API_KEY=<el mismo INTERNAL_API_KEY del backend>
 ## 5. Despliegue en producción
 
 ### Backend
-```bash
+```powershell
 cd assu-backend
 pnpm install
-npx prisma generate
-npx prisma migrate deploy
+pnpm run prisma:generate
+pnpm run prisma:migrate:deploy
 pnpm run build
 pnpm run start:prod
 ```
 
 ### Frontend
-```bash
+```powershell
 cd assu-frontend
 pnpm install
 pnpm run build
@@ -166,9 +164,9 @@ docker compose up -d
 
 ## 6. Verificar que funciona
 
-```bash
+```powershell
 # Backend listo?
-curl -H "x-api-key: TU_API_KEY" http://localhost:3000/status
+Invoke-RestMethod -Uri http://localhost:3000/status -Headers @{ "x-api-key" = "TU_API_KEY" }
 
 # Frontend listo?
 # Abre http://localhost:3100 en el navegador
@@ -178,9 +176,17 @@ curl -H "x-api-key: TU_API_KEY" http://localhost:3000/status
 
 ## Notas Windows
 
-- **Siempre usa Git Bash** para `pnpm` / `npx` / `node_modules\.bin\...` — no PowerShell ni CMD
+- **Usa PowerShell** (no `cmd.exe`) para `pnpm` / `pnpm exec` / `node_modules\.bin\...`.
+  El `script-shell` del `.npmrc` en la raíz ya fuerza PowerShell, así que
+  `pnpm run <script>` no abre un CMD.
 - **Dos terminales:** una para backend, otra para frontend — jamás en la misma
-- **Si `pnpm prisma:generate` abre CMD y no funciona** → usa `npx prisma generate` en su lugar
+- **Si `pnpm install` parece congelado**, no lo está: pnpm no imprime progreso en
+  todos los terminales. Corre `pnpm install --reporter=append-only` para ver el
+  avance real paquete por paquete.
+- **Sobre este equipo:** el disco es un HDD de 5400 RPM y Windows Defender tiene la
+  protección en tiempo real activa, así que la primera instalación completa de las
+  4 apps tarda bastante. No la cortes; las siguientes son rápidas (el store de pnpm
+  ya queda poblado).
 - **Si algo falla**, revisa que `pnpm-lock.yaml` y `node_modules` existan — si no, corre `pnpm install` de nuevo
 
 ---
