@@ -4,6 +4,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HeroGraphic } from '@/components/hero-graphic';
 import { cn } from '@/lib/utils';
+import { LEGAL_DOCS } from '@/lib/legal';
 
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'http://localhost:3300';
 
@@ -56,6 +57,7 @@ export default function LandingPage() {
       <HowItWorks />
       <Security />
       <Features />
+      <Legal />
       <FinalCta />
       <Footer />
     </div>
@@ -76,6 +78,9 @@ function Nav() {
           </a>
           <a href="#bancos" className="hover:text-foreground">
             Bancos
+          </a>
+          <a href="#datos" className="hover:text-foreground">
+            Datos y privacidad
           </a>
         </nav>
         <div className="flex items-center gap-2">
@@ -206,6 +211,35 @@ function Features() {
   );
 }
 
+function Legal() {
+  return (
+    <section id="datos" className="border-y border-border-light bg-surface-2 py-20">
+      <div className="mx-auto max-w-6xl px-5">
+        <Badge variant="accent">Tus datos y tus derechos</Badge>
+        <h2 className="mt-5 font-display text-[28px] text-foreground md:text-[32px]">
+          Tratamos tus datos con reglas claras
+        </h2>
+        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+          Assu cumple la Ley 1581 de 2012 de protección de datos personales (Habeas Data). Aquí encuentras cómo tratamos
+          tu información, qué autorizas al crear tu cuenta y cómo ejercer tus derechos en cualquier momento.
+        </p>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {LEGAL_DOCS.map((doc) => (
+            <Link
+              key={doc.href}
+              href={doc.href}
+              className="group rounded-bento border border-border bg-card p-5 transition-colors duration-150 hover:border-accent/40"
+            >
+              <p className="text-[14px] font-semibold text-foreground group-hover:text-accent">{doc.title}</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{doc.short}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FinalCta() {
   return (
     <section className="bg-ink py-20">
@@ -224,15 +258,34 @@ function FinalCta() {
 function Footer() {
   return (
     <footer className="border-t border-border-light">
-      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-5 py-8 md:flex-row md:items-center">
-        <Logo compact surface="light" />
-        <div className="flex items-center gap-6 text-[13px] text-muted-foreground">
-          <Link href={`${PORTAL_URL}/login`} className="hover:text-foreground">
-            Iniciar sesión
-          </Link>
-          <Link href={`${PORTAL_URL}/registro`} className="hover:text-foreground">
-            Crear cuenta
-          </Link>
+      <div className="mx-auto max-w-6xl px-5 py-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div>
+            <Logo compact surface="light" />
+            <p className="mt-3 max-w-xs text-[12px] leading-relaxed text-muted-foreground">
+              Verificación automática de movimientos bancarios para comercios.
+            </p>
+          </div>
+          <nav aria-label="Documentos legales" className="flex flex-col gap-2 text-[13px] text-muted-foreground">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Legal</span>
+            <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+              {LEGAL_DOCS.map((doc) => (
+                <Link key={doc.href} href={doc.href} className="hover:text-foreground">
+                  {doc.title}
+                </Link>
+              ))}
+            </div>
+          </nav>
+        </div>
+        <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-border-light pt-6 text-[13px] text-muted-foreground md:flex-row md:items-center">
+          <div className="flex items-center gap-6">
+            <Link href={`${PORTAL_URL}/login`} className="hover:text-foreground">
+              Iniciar sesión
+            </Link>
+            <Link href={`${PORTAL_URL}/registro`} className="hover:text-foreground">
+              Crear cuenta
+            </Link>
+          </div>
           <span>© 2026 Assu</span>
         </div>
       </div>
