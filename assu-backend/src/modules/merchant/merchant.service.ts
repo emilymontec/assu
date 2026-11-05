@@ -89,4 +89,10 @@ export class MerchantService {
   async markEmailVerified(id: string): Promise<Merchant> {
     return this.repository.markEmailVerified(id);
   }
+
+  /** Lo usa AuthModule al confirmar un token de recuperación de contraseña. */
+  async updatePassword(id: string, newPassword: string): Promise<Merchant> {
+    const passwordHash = await hash(newPassword, PASSWORD_SALT_ROUNDS);
+    return this.repository.updatePassword(id, passwordHash);
+  }
 }

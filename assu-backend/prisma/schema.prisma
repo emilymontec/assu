@@ -69,6 +69,12 @@ model BankAccount {
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
   bank               Bank                @relation(fields: [bankId], references: [id])
+  // FK real a Merchant: en un sistema multi-tenant, una cuenta con un
+  // `merchant_id` que no corresponde a ningún comercio es un dato
+  // huérfano que rompe silenciosamente el aislamiento (nadie podría ver
+  // ni reclamar esa cuenta). La constraint obliga a que todo dueño de
+  // cuenta exista como comercio registrado.
+  merchant           Merchant            @relation(fields: [merchantId], references: [id])
   movements          Movement[]
   syncLogs           SyncLog[]
   paymentSubmissions PaymentSubmission[]
@@ -320,13 +326,11 @@ model SyncLog {
 
 // ─────────────────────────────────────────────────────────────────────
 // Portal de Comercios: autenticación, dispositivos de confianza y
-// notificaciones. Deliberadamente en tablas propias, separadas de
-// BankAccount/Bank (que siguen sin saber nada de "quién inició sesión"
-// — `BankAccount.merchantId` sigue siendo el identificador libre que ya
-// usaban Bank Account Management/Internal API; en la práctica debe
-// coincidir con `Merchant.id` de un comercio registrado acá, pero no se
-// agrega una FK para no acoplar ambos módulos ni arriesgar la migración
-// de datos ya cargados con merchantId "legacy" que no vengan de este flujo).
+// notificaciones. Vive en tablas propias, separadas de BankAccount/Bank
+// (que siguen sin saber nada de "quién inició sesión"). `BankAccount.merchantId`
+// SÍ tiene FK real a `Merchant.id` (ver el modelo BankAccount): es el
+// dueño de la cuenta y el ancla del aislamiento multi-tenant — sin la
+// constraint, un `merchant_id` arbitrario crearía cuentas inalcanzables.
 // ─────────────────────────────────────────────────────────────────────
 
 enum DocumentType {
@@ -358,13 +362,36 @@ model Merchant {
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
 
-  trustedDevices  TrustedDevice[]
-  loginChallenges LoginChallenge[]
-  notifications   Notification[]
+  trustedDevices      TrustedDevice[]
+  loginChallenges     LoginChallenge[]
+  notifications       Notification[]
+  passwordResetTokens PasswordResetToken[]
+  bankAccounts        BankAccount[]
 
   // Un mismo documento de identidad no puede registrar dos cuentas.
   @@unique([documentType, documentNumber], name: "uniq_document_type_number")
   @@map("merchants")
+}
+
+/// Código de un solo uso para restablecer la contraseña del Portal.
+/// Separado de LoginChallenge a propósito: son flujos distintos (aquel
+/// prueba identidad para INICIAR sesión; este autoriza CAMBIAR la
+/// contraseña) y mezclarlos permitiría, por error, usar un challenge de
+/// login para resetear credenciales.
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  merchantId String    @map("merchant_id")
+  // sha256 del token de un solo uso (alta entropía, no hace falta bcrypt) —
+  // nunca se guarda el token en texto plano.
+  secretHash String    @map("secret_hash")
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, createdAt])
+  @@map("password_reset_tokens")
 }
 
 model TrustedDevice {

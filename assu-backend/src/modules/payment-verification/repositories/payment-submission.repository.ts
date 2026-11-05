@@ -90,11 +90,22 @@ export class PaymentSubmissionRepository implements PaymentSubmissionRepositoryP
     return row ? this.toDomain(row) : null;
   }
 
+  async findByIdForMerchant(id: string, merchantId: string): Promise<PaymentSubmission | null> {
+    // El `where` compuesto (id + dueño de la cuenta) es la barrera real
+    // contra el acceso cruzado entre comercios: si el comprobante no es
+    // de este comercio, no se encuentra la fila y se trata como 404.
+    const row = await this.prisma.paymentSubmission.findFirst({
+      where: { id, bankAccount: { merchantId } },
+    });
+    return row ? this.toDomain(row) : null;
+  }
+
   async findMany(filters: ListSubmissionsFilters): Promise<PaymentSubmission[]> {
     const rows = await this.prisma.paymentSubmission.findMany({
       where: {
         status: filters.status,
         bankAccountId: filters.bankAccountId,
+        ...(filters.merchantId && { bankAccount: { merchantId: filters.merchantId } }),
         createdAt:
           filters.dateFrom || filters.dateTo
             ? { gte: filters.dateFrom, lte: filters.dateTo }

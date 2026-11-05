@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    name: Build y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Generar cliente de Prisma
+        run: pnpm --filter assu-backend run prisma:generate
+
+      - name: Compilar backend
+        run: pnpm --filter assu-backend run build
+
+      - name: Ejecutar tests del backend
+        run: pnpm --filter assu-backend run test
+
+      - name: Compilar panel admin (assu-frontend)
+        run: pnpm --filter assu-frontend run build
+
+      - name: Compilar landing (assu-home)
+        run: pnpm --filter assu-home run build
+
+      - name: Compilar portal de comercios (assu-portal)
+        run: pnpm --filter assu-portal run build

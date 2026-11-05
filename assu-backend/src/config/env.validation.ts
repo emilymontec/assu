@@ -153,6 +153,11 @@ class EnvironmentVariables {
   @Min(1)
   AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES?: number;
 
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  AUTH_PASSWORD_RESET_EXPIRY_MINUTES?: number;
+
   // ── Portal de Comercios: correo y foto de documento ─────────────
   @IsOptional()
   @IsIn(['console', 'smtp'])
@@ -187,6 +192,15 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PORTAL_APP_URL?: string;
+
+  // ── Monitoring & Alerts: notificación de alertas ────────────────
+  @IsOptional()
+  @IsIn(['log', 'email'])
+  MONITORING_NOTIFIER?: string;
+
+  @IsOptional()
+  @IsString()
+  MONITORING_ALERT_EMAILS?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -214,7 +228,12 @@ export function validateEnv(config: Record<string, unknown>) {
       config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES !== undefined && config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES !== ''
         ? Number(config.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES)
         : undefined,
+    AUTH_PASSWORD_RESET_EXPIRY_MINUTES:
+      config.AUTH_PASSWORD_RESET_EXPIRY_MINUTES !== undefined && config.AUTH_PASSWORD_RESET_EXPIRY_MINUTES !== ''
+        ? Number(config.AUTH_PASSWORD_RESET_EXPIRY_MINUTES)
+        : undefined,
     SMTP_PORT: config.SMTP_PORT !== undefined && config.SMTP_PORT !== '' ? Number(config.SMTP_PORT) : undefined,
+    MONITORING_NOTIFIER: config.MONITORING_NOTIFIER || undefined,
   };
 
   const validated = plainToInstance(EnvironmentVariables, normalized, {

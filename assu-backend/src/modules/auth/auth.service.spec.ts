@@ -13,6 +13,7 @@
 jest.mock('../merchant/merchant.service', () => ({ MerchantService: class {} }));
 jest.mock('./repositories/login-challenge.repository', () => ({ LoginChallengeRepository: class {} }));
 jest.mock('./repositories/trusted-device.repository', () => ({ TrustedDeviceRepository: class {} }));
+jest.mock('./repositories/password-reset.repository', () => ({ PasswordResetRepository: class {} }));
 
 // eslint-disable-next-line import/first
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
@@ -55,7 +56,15 @@ describe('AuthService', () => {
   const merchantService = { findByEmail: jest.fn(), findById: jest.fn(), markEmailVerified: jest.fn() };
   const jwtService = { signAsync: jest.fn().mockResolvedValue('signed.jwt.token') };
   const configService = {
-    get: jest.fn((key: string) => ({ 'auth.emailCodeExpiryMinutes': 10, 'auth.deviceApprovalExpiryMinutes': 5 })[key]),
+    get: jest.fn(
+      (key: string) =>
+        ({
+          'auth.emailCodeExpiryMinutes': 10,
+          'auth.deviceApprovalExpiryMinutes': 5,
+          'auth.passwordResetExpiryMinutes': 30,
+          'portal.appUrl': 'http://localhost:3300',
+        })[key],
+    ),
   };
   const loginChallengeRepository = {
     create: jest.fn(),
@@ -64,12 +73,19 @@ describe('AuthService', () => {
     findPendingDeviceApprovalsForMerchant: jest.fn(),
     findById: jest.fn(),
     updateStatus: jest.fn(),
+    updateSecret: jest.fn(),
   };
   const trustedDeviceRepository = {
     findActive: jest.fn(),
     countActive: jest.fn(),
     upsertTrusted: jest.fn(),
     touchLastUsed: jest.fn(),
+  };
+  const passwordResetRepository = {
+    create: jest.fn(),
+    findActiveBySecretHash: jest.fn(),
+    markUsed: jest.fn(),
+    invalidateAllForMerchant: jest.fn(),
   };
   const merchantNotifier = { notify: jest.fn() };
   const emailPort = { send: jest.fn() };
@@ -81,6 +97,7 @@ describe('AuthService', () => {
       configService as any,
       loginChallengeRepository as any,
       trustedDeviceRepository as any,
+      passwordResetRepository as any,
       merchantNotifier as any,
       emailPort as any,
     );

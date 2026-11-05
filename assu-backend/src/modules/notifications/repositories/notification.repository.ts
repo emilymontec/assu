@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Notification as PrismaNotification } from '@prisma/client';
+import type { Notification as PrismaNotification, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { NotificationType } from '../../../core/domain/notification/notification-type.enum';
 
@@ -43,7 +43,7 @@ export class NotificationRepository {
         merchantId: data.merchantId,
         type: data.type,
         message: data.message,
-        metadata: data.metadata ?? undefined,
+        metadata: data.metadata as Prisma.InputJsonValue | undefined,
         emailSentAt: data.emailSentAt,
       },
     });

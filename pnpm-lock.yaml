@@ -149,12 +149,6 @@ importers:
       assu-ui:
         specifier: workspace:*
         version: link:../packages/assu-ui
-      class-variance-authority:
-        specifier: ^0.7.0
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       lucide-react:
         specifier: ^0.445.0
         version: 0.445.0(react@18.3.1)
@@ -167,9 +161,6 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      tailwind-merge:
-        specifier: ^2.5.2
-        version: 2.6.1
     devDependencies:
       '@types/node':
         specifier: ^20.16.0
@@ -198,12 +189,6 @@ importers:
       assu-ui:
         specifier: workspace:*
         version: link:../packages/assu-ui
-      class-variance-authority:
-        specifier: ^0.7.0
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       next:
         specifier: 14.2.35
         version: 14.2.35(@opentelemetry/api@1.10.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -213,9 +198,6 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      tailwind-merge:
-        specifier: ^2.5.2
-        version: 2.6.1
     devDependencies:
       '@types/node':
         specifier: ^20.16.0
@@ -244,12 +226,6 @@ importers:
       assu-ui:
         specifier: workspace:*
         version: link:../packages/assu-ui
-      class-variance-authority:
-        specifier: ^0.7.0
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       lucide-react:
         specifier: ^0.445.0
         version: 0.445.0(react@18.3.1)
@@ -262,9 +238,6 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      tailwind-merge:
-        specifier: ^2.5.2
-        version: 2.6.1
     devDependencies:
       '@types/node':
         specifier: ^20.16.0

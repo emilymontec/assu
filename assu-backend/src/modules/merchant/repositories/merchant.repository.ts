@@ -69,4 +69,9 @@ export class MerchantRepository {
     });
     return toDomain(record);
   }
+
+  async updatePassword(id: string, passwordHash: string): Promise<Merchant> {
+    const record = await this.prisma.merchant.update({ where: { id }, data: { passwordHash } });
+    return toDomain(record);
+  }
 }

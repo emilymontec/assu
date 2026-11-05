@@ -55,7 +55,12 @@ function LoginForm() {
           <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="password">Contraseña</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Contraseña</Label>
+            <Link href="/olvide" className="text-[11px] font-medium text-accent hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
           <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
 

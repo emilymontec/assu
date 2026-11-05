@@ -27,4 +27,27 @@ export class TrustedDeviceRepository {
   async touchLastUsed(id: string): Promise<void> {
     await this.prisma.trustedDevice.update({ where: { id }, data: { lastUsedAt: new Date() } });
   }
+
+  /** Dispositivos de confianza vigentes del comercio, más recientes primero. */
+  async listActive(merchantId: string) {
+    return this.prisma.trustedDevice.findMany({
+      where: { merchantId, revokedAt: null },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Revoca un dispositivo (deja de contar como "de confianza": el próximo
+   * login desde él volverá a pedir segundo factor). El `where` incluye
+   * `merchantId` para que un comercio no pueda revocar el dispositivo de
+   * otro pasando un id a la suerte. Devuelve `false` si no existía o ya
+   * estaba revocado.
+   */
+  async revoke(merchantId: string, deviceId: string): Promise<boolean> {
+    const result = await this.prisma.trustedDevice.updateMany({
+      where: { id: deviceId, merchantId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return result.count > 0;
+  }
 }

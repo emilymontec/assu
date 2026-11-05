@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -21,8 +22,13 @@ import { CurrentMerchant } from './current-merchant.decorator';
 import { RegisterMerchantDto } from './dto/register-merchant.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailCodeDto } from './dto/verify-email-code.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendCodeDto } from './dto/resend-code.dto';
+import { ResendWelcomeEmailDto } from './dto/resend-welcome-email.dto';
 import { MerchantResponseDto } from '../merchant/dto/merchant-response.dto';
 import { AttemptStatusResponseDto } from './dto/attempt-status-response.dto';
+import { TrustedDeviceResponseDto } from './dto/trusted-device-response.dto';
 
 const MAX_DOCUMENT_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED_DOCUMENT_PHOTO_MIME_TYPES = ['image/jpeg', 'image/png'];
@@ -73,6 +79,10 @@ export class AuthController {
       documentPhoto: { buffer: documentPhoto.buffer, mimeType: documentPhoto.mimetype },
     });
 
+    // El correo de bienvenida es best-effort (ver AuthService.sendWelcomeEmail):
+    // no debe tumbar un registro que ya quedó persistido.
+    await this.authService.sendWelcomeEmail(merchant.id);
+
     return MerchantResponseDto.fromDomain(merchant);
   }
 
@@ -104,6 +114,37 @@ export class AuthController {
     return this.authService.completeByDeviceApproval(attemptId);
   }
 
+  @Post('login/resend-code')
+  @ApiOperation({ summary: 'Reenvía el código de 6 dígitos de un intento de login pendiente (mismo attemptId)' })
+  async resendCode(@Body() dto: ResendCodeDto): Promise<{ ok: true }> {
+    await this.authService.resendEmailCode(dto.attemptId);
+    return { ok: true };
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary:
+      'Solicita un enlace de recuperación de contraseña. Responde OK exista o no la cuenta, para no permitir enumerar comercios.',
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ ok: true }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { ok: true };
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Cambia la contraseña usando el token recibido por correo (de un solo uso)' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ ok: true }> {
+    await this.authService.resetPassword(dto.token, dto.password);
+    return { ok: true };
+  }
+
+  @Post('resend-welcome')
+  @ApiOperation({ summary: 'Reenvía el correo de bienvenida (por si el comercio no lo recibió al registrarse)' })
+  async resendWelcome(@Body() dto: ResendWelcomeEmailDto): Promise<{ ok: true }> {
+    await this.authService.resendWelcomeEmail(dto.email);
+    return { ok: true };
+  }
+
   @Get('pending-approvals')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -127,6 +168,26 @@ export class AuthController {
   @ApiOperation({ summary: 'Rechazar un inicio de sesión nuevo ("no fui yo")' })
   async deny(@Param('id') id: string, @CurrentMerchant() merchant: MerchantJwtPayload): Promise<{ ok: true }> {
     await this.authService.denyDevice(id, merchant.sub);
+    return { ok: true };
+  }
+
+  @Get('devices')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Dispositivos de confianza del comercio autenticado' })
+  async listDevices(@CurrentMerchant() merchant: MerchantJwtPayload): Promise<TrustedDeviceResponseDto[]> {
+    return this.authService.listTrustedDevices(merchant.sub);
+  }
+
+  @Delete('devices/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Revocar la confianza de un dispositivo (volverá a pedir segundo factor al entrar)' })
+  async revokeDevice(
+    @Param('id') id: string,
+    @CurrentMerchant() merchant: MerchantJwtPayload,
+  ): Promise<{ ok: true }> {
+    await this.authService.revokeTrustedDevice(merchant.sub, id);
     return { ok: true };
   }
 

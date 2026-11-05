@@ -63,8 +63,25 @@ export class PaymentVerificationService {
     return this.repository.findMany(filters);
   }
 
+  /**
+   * Variante acotada al comercio autenticado — la que usa el Portal.
+   * Nunca revela si el comprobante existe pero es de otro comercio: ambos
+   * casos devuelven el mismo 404.
+   */
+  async findByIdForMerchant(id: string, merchantId: string): Promise<PaymentSubmission> {
+    const submission = await this.repository.findByIdForMerchant(id, merchantId);
+    if (!submission) throw new NotFoundException(`No existe el comprobante ${id}`);
+    return submission;
+  }
+
   async listEvents(id: string): Promise<VerificationEvent[]> {
     await this.findById(id); // 404 si no existe
+    return this.repository.listEvents(id);
+  }
+
+  /** Igual que `listEvents`, pero solo si el comprobante pertenece al comercio autenticado. */
+  async listEventsForMerchant(id: string, merchantId: string): Promise<VerificationEvent[]> {
+    await this.findByIdForMerchant(id, merchantId); // 404 si no existe o no es suyo
     return this.repository.listEvents(id);
   }
 

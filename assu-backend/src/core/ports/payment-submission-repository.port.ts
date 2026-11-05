@@ -18,6 +18,13 @@ export interface CreateSubmissionData {
 export interface ListSubmissionsFilters {
   status?: PaymentSubmissionStatus;
   bankAccountId?: string;
+  /**
+   * Filtra por el comercio DUEÑO de la cuenta a la que pertenece el
+   * comprobante (submission → BankAccount.merchantId). Es el filtro que
+   * garantiza el aislamiento multi-tenant en el Portal: sin él, un
+   * comercio vería comprobantes de cualquier otro.
+   */
+  merchantId?: string;
   dateFrom?: Date;
   dateTo?: Date;
 }
@@ -33,6 +40,12 @@ export interface PaymentSubmissionRepositoryPort {
   createIfNotExists(data: CreateSubmissionData): Promise<{ submission: PaymentSubmission; wasCreated: boolean }>;
 
   findById(id: string): Promise<PaymentSubmission | null>;
+  /**
+   * Igual que `findById`, pero devuelve `null` si el comprobante no
+   * pertenece al comercio indicado. Es la barrera contra que un comercio
+   * lea el detalle de un comprobante ajeno pasando un id a la suerte.
+   */
+  findByIdForMerchant(id: string, merchantId: string): Promise<PaymentSubmission | null>;
   findMany(filters: ListSubmissionsFilters): Promise<PaymentSubmission[]>;
 
   /** ¿Ya existe algún submission previo con este hash de archivo? (reutilización de comprobante) */

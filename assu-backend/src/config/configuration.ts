@@ -71,6 +71,14 @@ export default () => ({
     // seguido que esto — sin esto, una cuenta caída dispararía una
     // alerta nueva cada 5 minutos indefinidamente.
     cooldownMinutes: parseInt(process.env.MONITORING_ALERT_COOLDOWN_MINUTES ?? '60', 10),
+    // 'log' (default): deja la alerta en el log. 'email': además de
+    // loguearla, la envía por correo a alertEmails vía EMAIL_PORT.
+    notifier: process.env.MONITORING_NOTIFIER ?? 'log',
+    // Destinatarios humanos de las alertas (lista separada por comas).
+    alertEmails: (process.env.MONITORING_ALERT_EMAILS ?? '')
+      .split(',')
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0),
   },
   receipts: {
     // Ruta local para el adapter de referencia de ReceiptStoragePort.
@@ -133,6 +141,9 @@ export default () => ({
     // dispositivo YA de confianza cuando se intenta iniciar sesión desde
     // uno nuevo (el otro camino del segundo factor, además del correo).
     deviceApprovalExpiryMinutes: parseInt(process.env.AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES ?? '5', 10),
+    // Minutos de validez del enlace de recuperación de contraseña que se
+    // envía por correo. Pasado esto, el token de un solo uso deja de servir.
+    passwordResetExpiryMinutes: parseInt(process.env.AUTH_PASSWORD_RESET_EXPIRY_MINUTES ?? '30', 10),
   },
   email: {
     // 'console' (default): no envía nada de verdad, solo deja el correo

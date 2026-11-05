@@ -125,6 +125,48 @@ export interface PendingApprovalDto {
   expiresAt: string;
 }
 
+export interface TrustedDeviceDto {
+  id: string;
+  label: string;
+  lastUsedAt: string;
+  createdAt: string;
+}
+
+export type VerificationStatus =
+  | 'RECEIVED'
+  | 'PROCESSING'
+  | 'PENDING_MOVEMENT'
+  | 'MATCHING'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'AMBIGUOUS'
+  | 'ERROR'
+  | 'MANUAL_REVIEW';
+
+export interface VerificationDto {
+  id: string;
+  channel: string;
+  status: VerificationStatus;
+  bankAccountId: string | null;
+  matchedMovementId: string | null;
+  matchResult: string | null;
+  matchScore: number | null;
+  ocrConfidence: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VerificationEventDto {
+  id: string;
+  submissionId: string;
+  fromStatus: VerificationStatus | null;
+  toStatus: VerificationStatus;
+  reason: string | null;
+  actor: string;
+  createdAt: string;
+}
+
 /** `login()`/`verifyCode()`/`completeAttempt()` devuelven una sesión directa si no hace falta más segundo factor. */
 function isSession(value: SessionDto | LoginChallengeDto): value is SessionDto {
   return 'accessToken' in value;
@@ -139,6 +181,8 @@ export const api = {
     }),
   verifyCode: (attemptId: string, code: string) =>
     request<SessionDto>('/portal/auth/login/verify-code', { method: 'POST', body: JSON.stringify({ attemptId, code }) }),
+  resendLoginCode: (attemptId: string) =>
+    request<{ ok: true }>('/portal/auth/login/resend-code', { method: 'POST', body: JSON.stringify({ attemptId }) }),
   attemptStatus: (attemptId: string) =>
     request<{ status: 'PENDING' | 'APPROVED' | 'DENIED' | 'EXPIRED' }>(`/portal/auth/login/attempts/${attemptId}/status`),
   completeAttempt: (attemptId: string) =>
@@ -147,6 +191,22 @@ export const api = {
   approve: (id: string) => request<{ ok: true }>(`/portal/auth/pending-approvals/${id}/approve`, { method: 'PATCH' }),
   deny: (id: string) => request<{ ok: true }>(`/portal/auth/pending-approvals/${id}/deny`, { method: 'PATCH' }),
   me: () => request<MerchantDto>('/portal/auth/me'),
+  devices: {
+    list: () => request<TrustedDeviceDto[]>('/portal/auth/devices'),
+    revoke: (id: string) => request<{ ok: true }>(`/portal/auth/devices/${id}`, { method: 'DELETE' }),
+  },
+  password: {
+    forgot: (email: string) =>
+      request<{ ok: true }>('/portal/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    reset: (token: string, password: string) =>
+      request<{ ok: true }>('/portal/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+  },
+  verifications: {
+    list: (status?: VerificationStatus) =>
+      request<VerificationDto[]>(`/portal/verifications${status ? `?status=${status}` : ''}`),
+    detail: (id: string) => request<VerificationDto>(`/portal/verifications/${id}`),
+    events: (id: string) => request<VerificationEventDto[]>(`/portal/verifications/${id}/events`),
+  },
   notifications: {
     list: () => request<NotificationDto[]>('/portal/notifications'),
     markRead: (id: string) => request<NotificationDto>(`/portal/notifications/${id}/read`, { method: 'PATCH' }),

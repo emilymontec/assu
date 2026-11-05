@@ -80,4 +80,15 @@ export class LoginChallengeRepository {
     const row = await this.prisma.loginChallenge.update({ where: { id }, data: { status } });
     return toRecord(row);
   }
+
+  /**
+   * Reemplaza el secret y renueva la expiración de un challenge pendiente —
+   * lo usa el "reenviar código": se emite un código nuevo sobre el MISMO
+   * attemptId para que el polling del dispositivo que inició sesión siga
+   * funcionando sin reiniciar el flujo.
+   */
+  async updateSecret(id: string, secretHash: string, expiresAt: Date): Promise<LoginChallengeRecord> {
+    const row = await this.prisma.loginChallenge.update({ where: { id }, data: { secretHash, expiresAt } });
+    return toRecord(row);
+  }
 }

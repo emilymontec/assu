@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { PaymentVerificationService } from './payment-verification.service';
 import { PaymentVerificationController } from './payment-verification.controller';
+import { PortalPaymentVerificationController } from './portal-payment-verification.controller';
 import { ReceiptProcessingProcessor } from './processors/receipt-processing.processor';
 import { PaymentSubmissionPersistenceModule } from './payment-submission-persistence.module';
 import { ReceiptChannelResponderModule } from './receipt-channel-responder.module';
@@ -21,7 +22,7 @@ import { RECEIPT_PROCESSING_QUEUE_NAME } from './receipt-processing-queue.consta
     MovementModule, // expone MOVEMENT_REPOSITORY_PORT: candidatos de conciliación
     EventsModule, // expone EVENT_PUBLISHER_PORT: payment.verification.resolved
   ],
-  controllers: [PaymentVerificationController],
+  controllers: [PaymentVerificationController, PortalPaymentVerificationController],
   providers: [PaymentVerificationService, ReceiptProcessingProcessor],
   exports: [PaymentVerificationService, PaymentSubmissionPersistenceModule],
 })

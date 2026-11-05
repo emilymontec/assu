@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
@@ -9,6 +9,7 @@ import { LoginChallengeType } from '../../core/domain/auth/login-challenge-type.
 import { LoginChallengeStatus } from '../../core/domain/auth/login-challenge-status.enum';
 import { LoginChallengeRepository } from './repositories/login-challenge.repository';
 import { TrustedDeviceRepository } from './repositories/trusted-device.repository';
+import { PasswordResetRepository } from './repositories/password-reset.repository';
 import { MERCHANT_NOTIFIER_PORT, MerchantNotifierPort } from '../../core/ports/merchant-notifier.port';
 import { NotificationType } from '../../core/domain/notification/notification-type.enum';
 import { EMAIL_PORT, EmailPort } from '../../core/ports/email.port';
@@ -19,6 +20,7 @@ import { SessionResponseDto } from './dto/session-response.dto';
 import { MerchantResponseDto } from '../merchant/dto/merchant-response.dto';
 import { AttemptStatus, AttemptStatusResponseDto } from './dto/attempt-status-response.dto';
 import { PendingApprovalResponseDto } from './dto/pending-approval-response.dto';
+import { TrustedDeviceResponseDto } from './dto/trusted-device-response.dto';
 
 export interface DeviceContext {
   fingerprint: string;
@@ -40,6 +42,15 @@ function maskEmail(email: string): string {
 }
 
 /**
+ * sha256 basta para el token de recuperación (a diferencia del código de
+ * 6 dígitos, que sí usa bcrypt): son 32 bytes aleatorios, imposibles de
+ * adivinar por fuerza bruta, y permite buscar el token por su hash.
+ */
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+/**
  * Orquesta login + segundo factor del Portal de Comercios. Dos caminos
  * de segundo factor corren EN PARALELO para el mismo `attemptId`
  * (ninguno es "el principal"): el código de 6 dígitos por correo
@@ -50,12 +61,15 @@ function maskEmail(email: string): string {
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly merchantService: MerchantService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly loginChallengeRepository: LoginChallengeRepository,
     private readonly trustedDeviceRepository: TrustedDeviceRepository,
+    private readonly passwordResetRepository: PasswordResetRepository,
     @Inject(MERCHANT_NOTIFIER_PORT) private readonly merchantNotifier: MerchantNotifierPort,
     @Inject(EMAIL_PORT) private readonly email: EmailPort,
   ) {}
@@ -102,12 +116,7 @@ export class AuthService {
       expiresAt,
     });
 
-    await this.email.send({
-      to: merchant.email,
-      subject: 'Tu código de verificación de Assu',
-      text: `Tu código de verificación es ${code}. Vence en ${this.configService.get('auth.emailCodeExpiryMinutes')} minutos. Si no fuiste tú, ignora este correo.`,
-      html: `<p>Tu código de verificación es <strong>${code}</strong>.</p><p>Vence en ${this.configService.get('auth.emailCodeExpiryMinutes')} minutos. Si no fuiste tú, ignora este correo.</p>`,
-    });
+    await this.sendLoginCodeEmail(merchant.email, code);
 
     const activeTrustedDevices = await this.trustedDeviceRepository.countActive(merchant.id);
     const canApproveFromTrustedDevice = activeTrustedDevices > 0;
@@ -209,6 +218,131 @@ export class AuthService {
   async me(merchantId: string): Promise<MerchantResponseDto> {
     const merchant = await this.merchantService.findById(merchantId);
     return MerchantResponseDto.fromDomain(merchant);
+  }
+
+  /**
+   * Envía el correo de bienvenida tras el registro. Best-effort a
+   * propósito: si el correo falla, la cuenta YA quedó creada y no tiene
+   * sentido devolverle un error al comercio por un problema de SMTP.
+   */
+  async sendWelcomeEmail(merchantId: string): Promise<void> {
+    try {
+      const merchant = await this.merchantService.findById(merchantId);
+      const portalUrl = this.configService.get<string>('portal.appUrl');
+      await this.email.send({
+        to: merchant.email,
+        subject: 'Bienvenido a Assu',
+        text: `Hola ${merchant.fullName}, tu cuenta de comercio en Assu fue creada correctamente. Ingresa al Portal en ${portalUrl} para conectar tu cuenta bancaria y empezar a verificar pagos.`,
+        html: `<p>Hola ${merchant.fullName},</p><p>Tu cuenta de comercio en Assu fue creada correctamente. Ingresa al <a href="${portalUrl}">Portal</a> para conectar tu cuenta bancaria y empezar a verificar pagos.</p>`,
+      });
+    } catch (err) {
+      this.logger.warn(`No se pudo enviar el correo de bienvenida al comercio ${merchantId}: ${err}`);
+    }
+  }
+
+  /** Reenvía el correo de bienvenida. Nunca revela si el correo existe. */
+  async resendWelcomeEmail(email: string): Promise<void> {
+    const merchant = await this.merchantService.findByEmail(email);
+    if (!merchant) return;
+    await this.sendWelcomeEmail(merchant.id);
+  }
+
+  /**
+   * Inicia la recuperación de contraseña. Devuelve siempre OK (aunque el
+   * correo no exista) para no permitir enumerar cuentas registradas: la
+   * única señal de que funcionó es que llega el correo.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const merchant = await this.merchantService.findByEmail(email);
+    if (!merchant) return;
+
+    // Solo un enlace válido a la vez: pedir uno nuevo invalida los anteriores.
+    await this.passwordResetRepository.invalidateAllForMerchant(merchant.id);
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + (this.configService.get<number>('auth.passwordResetExpiryMinutes') ?? 30) * 60_000,
+    );
+    await this.passwordResetRepository.create({
+      merchantId: merchant.id,
+      secretHash: sha256(token),
+      expiresAt,
+    });
+
+    const resetUrl = `${this.configService.get<string>('portal.appUrl')}/recuperar?token=${token}`;
+    await this.email.send({
+      to: merchant.email,
+      subject: 'Restablece tu contraseña de Assu',
+      text: `Para elegir una contraseña nueva entra a ${resetUrl}. El enlace vence en ${this.configService.get('auth.passwordResetExpiryMinutes') ?? 30} minutos. Si no fuiste tú, ignora este correo.`,
+      html: `<p>Para elegir una contraseña nueva haz clic <a href="${resetUrl}">aquí</a>.</p><p>El enlace vence en ${this.configService.get('auth.passwordResetExpiryMinutes') ?? 30} minutos. Si no fuiste tú, ignora este correo.</p>`,
+    });
+  }
+
+  /** Confirma un token de recuperación: cambia la contraseña y lo marca como usado. */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const record = await this.passwordResetRepository.findActiveBySecretHash(sha256(token));
+    if (!record || record.expiresAt < new Date()) {
+      throw new BadRequestException('El enlace de recuperación es inválido o ya expiró. Solicita uno nuevo.');
+    }
+
+    await this.merchantService.updatePassword(record.merchantId, newPassword);
+    await this.passwordResetRepository.markUsed(record.id);
+  }
+
+  /**
+   * Reenvía el código de 6 dígitos de un intento de login pendiente,
+   * reutilizando el MISMO `attemptId` (para que el polling del
+   * dispositivo que inició sesión siga vigente) pero con un código y una
+   * expiración nuevos.
+   */
+  async resendEmailCode(attemptId: string): Promise<void> {
+    const challenge = await this.loginChallengeRepository.findPendingByAttemptIdAndType(
+      attemptId,
+      LoginChallengeType.EMAIL_CODE,
+    );
+    if (!challenge || challenge.expiresAt < new Date()) {
+      throw new UnauthorizedException('El intento de login expiró o ya no es válido. Inicia sesión de nuevo.');
+    }
+
+    const merchant = await this.merchantService.findById(challenge.merchantId);
+    const code = generateSixDigitCode();
+    const expiresAt = new Date(
+      Date.now() + (this.configService.get<number>('auth.emailCodeExpiryMinutes') ?? 10) * 60_000,
+    );
+
+    await this.loginChallengeRepository.updateSecret(challenge.id, await hash(code, 10), expiresAt);
+    await this.sendLoginCodeEmail(merchant.email, code);
+  }
+
+  /** Dispositivos de confianza vigentes del comercio (para la pantalla de seguridad). */
+  async listTrustedDevices(merchantId: string): Promise<TrustedDeviceResponseDto[]> {
+    const devices = await this.trustedDeviceRepository.listActive(merchantId);
+    return devices.map((d) => {
+      const dto = new TrustedDeviceResponseDto();
+      dto.id = d.id;
+      dto.label = d.label;
+      dto.lastUsedAt = d.lastUsedAt;
+      dto.createdAt = d.createdAt;
+      return dto;
+    });
+  }
+
+  /** Revoca un dispositivo de confianza del propio comercio. */
+  async revokeTrustedDevice(merchantId: string, deviceId: string): Promise<void> {
+    const revoked = await this.trustedDeviceRepository.revoke(merchantId, deviceId);
+    if (!revoked) {
+      throw new NotFoundException('Dispositivo no encontrado');
+    }
+  }
+
+  private async sendLoginCodeEmail(to: string, code: string): Promise<void> {
+    const minutes = this.configService.get<number>('auth.emailCodeExpiryMinutes') ?? 10;
+    await this.email.send({
+      to,
+      subject: 'Tu código de verificación de Assu',
+      text: `Tu código de verificación es ${code}. Vence en ${minutes} minutos. Si no fuiste tú, ignora este correo.`,
+      html: `<p>Tu código de verificación es <strong>${code}</strong>.</p><p>Vence en ${minutes} minutos. Si no fuiste tú, ignora este correo.</p>`,
+    });
   }
 
   private async getOwnedPendingChallenge(challengeId: string, approverMerchantId: string) {
