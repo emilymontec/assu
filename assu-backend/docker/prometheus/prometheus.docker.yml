@@ -1,0 +1,13 @@
+# Configuración de Prometheus para el stack Docker completo
+# (docker-compose.yml de la raíz), donde el backend SÍ corre como
+# contenedor. Es distinta de prometheus.yml, que scrapea el backend
+# cuando este corre en el host (ver assu-backend/docker/docker-compose.yml).
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: assu-backend
+    metrics_path: /metrics
+    static_configs:
+      # 'backend' es el nombre del servicio del compose de la raíz.
+      - targets: ['backend:3000']

@@ -1,0 +1,29 @@
+# Archivos que NO deben entrar al contexto de build de Docker.
+# El contexto de build es la raíz del monorepo (ver docker-compose.yml),
+# así que estas reglas aplican a todas las imágenes.
+
+# Dependencias y artefactos de build locales: se regeneran dentro de la
+# imagen. Si no se excluyen, se copiarían los node_modules/.next de Windows.
+node_modules
+**/node_modules
+.pnpm-store
+**/.next
+**/dist
+**/out
+
+# Datos y secretos locales (nunca se hornean en una imagen)
+**/.env
+**/.env.local
+**/.env.*.local
+assu-backend/storage
+assu-backend/prisma/*.db
+
+# Basura de desarrollo
+.git
+.github
+**/coverage
+**/playwright-report
+**/test-results
+**/*.tsbuildinfo
+**/*.log
+.DS_Store

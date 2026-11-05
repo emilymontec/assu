@@ -1,0 +1,237 @@
+# Assu — despliegue completo con Docker.
+#
+# Levanta todo el stack: Postgres + Redis + backend (NestJS) + los tres
+# frontends (admin 3100, landing 3200, portal 3300). Prometheus y Grafana
+# quedan detrás del perfil opcional "observability".
+#
+# Desde la raíz del repo:
+#   docker compose up --build
+#   docker compose --profile observability up --build
+#
+# Las variables sensibles se leen del archivo .env de la raíz (Docker
+# Compose lo carga solo); copia .env.example a .env y complétalo.
+
+name: assu
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-assu}:${POSTGRES_PASSWORD:-assu}@postgres:5432/${POSTGRES_DB:-assu}?schema=public
+
+services:
+  # ── Infraestructura ─────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-assu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assu}
+      POSTGRES_DB: ${POSTGRES_DB:-assu}
+    volumes:
+      - assu-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-assu}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - assu-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Aplica las migraciones de Prisma una sola vez y termina. El backend
+  # espera a que este servicio salga con éxito (ver depends_on).
+  migrate:
+    build:
+      context: .
+      dockerfile: assu-backend/docker/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  # ── Backend (NestJS) ────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: assu-backend/docker/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      APP_NAME: assu
+      DATABASE_URL: *database-url
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # Cifrado de credenciales bancarias
+      ENCRYPTION_PROVIDER: ${ENCRYPTION_PROVIDER:-local}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:?Define CREDENTIALS_ENCRYPTION_KEY en el .env de la raíz}
+      CREDENTIALS_ENCRYPTION_KEY_PREVIOUS: ${CREDENTIALS_ENCRYPTION_KEY_PREVIOUS:-}
+      AWS_KMS_REGION: ${AWS_KMS_REGION:-us-east-1}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
+      # API interna (la usa el proxy del panel admin)
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Define INTERNAL_API_KEY en el .env de la raíz}
+      # Scheduler y límites de sincronización
+      DEFAULT_SYNC_INTERVAL_SECONDS: ${DEFAULT_SYNC_INTERVAL_SECONDS:-60}
+      RATE_LIMIT_MAX_PER_BANK_PER_MINUTE: ${RATE_LIMIT_MAX_PER_BANK_PER_MINUTE:-20}
+      RATE_LIMIT_MIN_SECONDS_BETWEEN_ACCOUNT_SYNCS: ${RATE_LIMIT_MIN_SECONDS_BETWEEN_ACCOUNT_SYNCS:-10}
+      # Playwright / scraping
+      PLAYWRIGHT_HEADLESS: ${PLAYWRIGHT_HEADLESS:-true}
+      PLAYWRIGHT_TIMEOUT_MS: ${PLAYWRIGHT_TIMEOUT_MS:-30000}
+      PLAYWRIGHT_PROXY_SERVER: ${PLAYWRIGHT_PROXY_SERVER:-}
+      PLAYWRIGHT_PROXY_USERNAME: ${PLAYWRIGHT_PROXY_USERNAME:-}
+      PLAYWRIGHT_PROXY_PASSWORD: ${PLAYWRIGHT_PROXY_PASSWORD:-}
+      # Aislamiento del scraping. Dentro del contenedor el backend ya está
+      # aislado, así que 'in-process' es lo correcto; 'docker' necesitaría
+      # montar el socket de Docker y no aplica a este despliegue.
+      SCRAPER_ISOLATION_MODE: ${SCRAPER_ISOLATION_MODE:-in-process}
+      # Logging y eventos
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EVENTS_STREAM_NAME: ${EVENTS_STREAM_NAME:-assu.movements}
+      # Monitoring & alertas
+      MONITORING_STALE_THRESHOLD_MINUTES: ${MONITORING_STALE_THRESHOLD_MINUTES:-30}
+      MONITORING_ERROR_RATE_WINDOW_MINUTES: ${MONITORING_ERROR_RATE_WINDOW_MINUTES:-15}
+      MONITORING_ERROR_RATE_THRESHOLD: ${MONITORING_ERROR_RATE_THRESHOLD:-0.5}
+      MONITORING_ERROR_RATE_MIN_SAMPLE: ${MONITORING_ERROR_RATE_MIN_SAMPLE:-3}
+      MONITORING_ALERT_COOLDOWN_MINUTES: ${MONITORING_ALERT_COOLDOWN_MINUTES:-60}
+      MONITORING_NOTIFIER: ${MONITORING_NOTIFIER:-log}
+      MONITORING_ALERT_EMAILS: ${MONITORING_ALERT_EMAILS:-}
+      # Verificación de comprobantes
+      RECEIPTS_STORAGE_PATH: /app/assu-backend/storage/receipts
+      DOCUMENT_PHOTOS_STORAGE_PATH: /app/assu-backend/storage/document-photos
+      OCR_PROVIDER: ${OCR_PROVIDER:-null}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BANK_ACCOUNT_ID: ${TELEGRAM_BANK_ACCOUNT_ID:-}
+      # Portal de Comercios: autenticación
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Define AUTH_JWT_SECRET en el .env de la raíz}
+      AUTH_JWT_EXPIRES_IN: ${AUTH_JWT_EXPIRES_IN:-12h}
+      AUTH_EMAIL_CODE_EXPIRY_MINUTES: ${AUTH_EMAIL_CODE_EXPIRY_MINUTES:-10}
+      AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES: ${AUTH_DEVICE_APPROVAL_EXPIRY_MINUTES:-5}
+      AUTH_PASSWORD_RESET_EXPIRY_MINUTES: ${AUTH_PASSWORD_RESET_EXPIRY_MINUTES:-30}
+      # Portal de Comercios: correo
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      SMTP_FROM: ${SMTP_FROM:-Assu <no-reply@assu.local>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # URL pública del portal (aparece en los correos que envía el backend)
+      PORTAL_APP_URL: ${PORTAL_APP_URL:-http://localhost:3300}
+    volumes:
+      - assu-storage:/app/assu-backend/storage
+    healthcheck:
+      # `node -e` en vez de curl para no depender de que la imagen traiga
+      # curl instalado. /health responde 200 mientras el proceso esté vivo.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Frontends (Next.js) ─────────────────────────────────
+  # Panel de administración: habla con el backend con una API key
+  # compartida que vive solo server-side (ver su proxy en /api/backend).
+  admin:
+    build:
+      context: .
+      dockerfile: assu-frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '3100:3100'
+    environment:
+      ASSU_BACKEND_API_URL: http://backend:3000
+      ASSU_BACKEND_API_KEY: ${INTERNAL_API_KEY:?Define INTERNAL_API_KEY en el .env de la raíz}
+
+  # Landing pública: solo enlaza al portal. La URL del portal se graba en
+  # el bundle al construir (build arg), porque la landing es estática.
+  home:
+    build:
+      context: .
+      dockerfile: assu-home/Dockerfile
+      args:
+        NEXT_PUBLIC_PORTAL_URL: ${NEXT_PUBLIC_PORTAL_URL:-http://localhost:3300}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '3200:3200'
+
+  # Portal de Comercios: cada comercio se autentica con su propio JWT.
+  portal:
+    build:
+      context: .
+      dockerfile: assu-portal/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '3300:3300'
+    environment:
+      ASSU_BACKEND_API_URL: http://backend:3000
+
+  # ── Observabilidad (perfil opcional) ────────────────────
+  # Solo se levantan con: docker compose --profile observability up
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ['observability']
+    restart: unless-stopped
+    volumes:
+      - ./assu-backend/docker/prometheus/prometheus.docker.yml:/etc/prometheus/prometheus.yml:ro
+      - assu-prometheus-data:/prometheus
+    ports:
+      - '9090:9090'
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    profiles: ['observability']
+    restart: unless-stopped
+    environment:
+      # Solo para uso local: entra sin credenciales como Admin.
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./assu-backend/docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./assu-backend/docker/grafana/dashboards:/etc/grafana/dashboards:ro
+      - assu-grafana-data:/var/lib/grafana
+    ports:
+      - '3001:3000' # 3000 lo usa el backend; Grafana queda en 3001
+    depends_on:
+      - prometheus
+
+volumes:
+  assu-postgres-data:
+  assu-redis-data:
+  assu-storage:
+  assu-prometheus-data:
+  assu-grafana-data:

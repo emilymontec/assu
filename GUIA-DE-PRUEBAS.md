@@ -1,399 +1,578 @@
-# Guía para probar Assu (backend + frontend)
+# Assu — Guía de configuración y despliegue con Docker
 
-Esta guía asume que ya descomprimiste el proyecto y tienes Node.js 20+,
-pnpm y Docker instalados. Corre todos los comandos **en tu máquina**, no
-en un sandbox sin acceso a `binaries.prisma.sh` — Prisma necesita
-descargar su motor de query engine la primera vez.
+Esta guía lleva el monorepo completo (**backend NestJS + 3 frontends
+Next.js + Postgres + Redis**) a contenedores, paso a paso y desde cero.
+Al terminar tendrás el stack corriendo con un solo comando y sabrás cómo
+operarlo, verificarlo y actualizarlo.
 
-> **Si estás en Windows:** usá **PowerShell** (no `cmd.exe`) — `cp` es
-> un alias de `Copy-Item` ahí, pero no existe en `cmd.exe` (usa `copy`
-> en su lugar). Backend y frontend corren en **dos terminales
-> separadas**: `pnpm run start:dev` y `pnpm dev` quedan en primer plano
-> y nunca devuelven el control a la shell.
+> Todos los comandos están escritos para **PowerShell** (Windows). Si
+> usas Linux/macOS, los mismos comandos funcionan salvo los de la
+> sección 3.2 para generar secretos.
 
 ---
 
-## 1. Infraestructura local (Postgres + Redis)
+## 0. Qué se levanta
 
-Desde `assu-backend/`:
+### 0.1 Servicios y puertos
 
-```bash
-cd assu-backend
-docker compose -f docker/docker-compose.yml up -d postgres redis
-```
+| Servicio | Qué es | Puerto en tu máquina | Acceso |
+|---|---|---|---|
+| `postgres` | Base de datos (Postgres 16) | — (solo red interna) | `docker compose exec postgres psql` |
+| `redis` | Colas BullMQ + sesiones + rate limiting | — (solo red interna) | `docker compose exec redis redis-cli` |
+| `migrate` | Job de una sola vez: `prisma migrate deploy` | — | termina y sale |
+| `backend` | API NestJS (Swagger en `/docs`) | `3000` | http://localhost:3000 |
+| `admin` | Panel de administración (ops) | `3100` | http://localhost:3100 |
+| `home` | Landing pública | `3200` | http://localhost:3200 |
+| `portal` | Portal de Comercios (login/registro) | `3300` | http://localhost:3300 |
+| `prometheus` | Métricas (perfil opcional) | `9090` | http://localhost:9090 |
+| `grafana` | Dashboards (perfil opcional) | `3001` | http://localhost:3001 |
 
-Verifica que ambos estén sanos:
+### 0.2 Archivos Docker del proyecto
 
-```bash
-docker ps
-```
+| Archivo | Para qué |
+|---|---|
+| `docker-compose.yml` (raíz) | Orquesta todo el stack |
+| `.env.example` (raíz) | Plantilla de variables del stack (copiar a `.env`) |
+| `.dockerignore` (raíz) | Excluye `node_modules`, `.next`, `.env`, etc. del contexto de build |
+| `assu-backend/docker/Dockerfile` | Imagen del backend (etapas `builder`, `migrate`, `runtime`) |
+| `assu-frontend/Dockerfile` | Imagen del panel admin (Next.js standalone) |
+| `assu-home/Dockerfile` | Imagen de la landing (Next.js standalone) |
+| `assu-portal/Dockerfile` | Imagen del portal (Next.js standalone) |
+| `assu-backend/docker/prometheus/prometheus.docker.yml` | Scrape de Prometheus apuntando al contenedor `backend` |
 
-Deberías ver `assu-postgres` y `assu-redis` como `healthy`.
-
-(Prometheus y Grafana son opcionales para probar funcionalidad — solo
-hacen falta si quieres revisar el módulo de Observability/Monitoring.)
+**Detalle importante:** todas las imágenes se construyen con **contexto = la
+raíz del monorepo** (no cada carpeta por separado). El proyecto usa un
+único `pnpm-lock.yaml` en la raíz y un solo `pnpm-workspace.yaml`, así que
+el contexto debe ser la raíz para que `pnpm install --frozen-lockfile`
+resuelva el workspace completo. El `docker-compose.yml` ya lo hace así.
 
 ---
 
-## 2. Backend (NestJS)
+## 1. Requisitos previos
 
-### 2.1 Instalar dependencias
+### 1.1 Docker
 
-```bash
-cd assu-backend
-corepack enable
-pnpm install
+Necesitas **Docker Desktop** (incluye el motor y `docker compose`). Verifica:
+
+```powershell
+docker version
+docker compose version
 ```
 
-### 2.2 Configurar variables de entorno
+- `docker version` debe mostrar la sección `Server` (si dice *"failed to
+  connect ... dockerDesktopLinuxEngine"*, **abre Docker Desktop** y espera
+  a que arranque).
+- `docker compose version` debe responder `v2.x`.
 
-```bash
-cp .env.example .env
+### 1.2 Windows: exclusiones de Windows Defender (recomendado)
+
+En este proyecto el disco es lento y Defender escanea en tiempo real, lo
+que hace que las instalaciones y los builds parezcan congelados. Agrega
+exclusiones en **PowerShell como Administrador**:
+
+```powershell
+Add-MpPreference -ExclusionPath "C:\Users\DESKTOP\Desktop\assu"
+Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\pnpm"
+Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Docker"
 ```
 
-Edita `.env` y como mínimo revisa:
+### 1.3 Internet durante el build
+
+El build de los frontends **descarga la tipografía Manrope desde
+`fonts.gstatic.com`** (Next.js la integra en tiempo de compilación). Si tu
+red bloquea ese dominio, el build del frontend fallará con
+`request to https://fonts.gstatic.com/... failed`. Necesitas acceso
+saliente para construir las imágenes (después, para correrlas, ya no).
+
+---
+
+## 2. Paso 1 — Situarse en la raíz del proyecto
+
+```powershell
+cd C:\Users\DESKTOP\Desktop\assu
+```
+
+Todos los comandos del resto de la guía se ejecutan **desde aquí**, porque
+el `docker-compose.yml` y el `.env` viven en la raíz.
+
+---
+
+## 3. Paso 2 — Crear el archivo `.env`
+
+### 3.1 Copiar la plantilla
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### 3.2 Generar y pegar los 3 secretos obligatorios
+
+El compose **falla de inmediato** si alguno queda vacío (es a propósito:
+mejor fallar que arrancar con un secreto débil). Genera cada uno con:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Ejecútalo **3 veces** y pega cada resultado en `.env`:
+
+| Variable | Qué protege |
+|---|---|
+| `CREDENTIALS_ENCRYPTION_KEY` | Cifra las credenciales bancarias (AES-256-GCM) |
+| `INTERNAL_API_KEY` | API interna del backend; es la MISMA que usa el panel admin |
+| `AUTH_JWT_SECRET` | Firma los JWT de sesión de los comercios en el portal |
+
+Si no tienes Node instalado en el host, puedes generarlos con Python
+(`python -c "import secrets; print(secrets.token_hex(32))"`) o con `openssl
+rand -hex 32`.
+
+### 3.3 Variables que querrás revisar
+
+El resto del `.env` trae valores por defecto funcionales. Lo que conviene
+tocar según lo que vayas a probar:
 
 | Variable | Para qué |
 |---|---|
-| `DATABASE_URL` | Ya viene lista para el Postgres del docker-compose |
-| `REDIS_HOST` / `REDIS_PORT` | Ya vienen listos |
-| `INTERNAL_API_KEY` | Cámbiala por cualquier string; la usarás en todas las llamadas a la API |
-| `RECEIPTS_STORAGE_PATH` | Carpeta local donde se guardan los comprobantes recibidos (por defecto `./storage/receipts`) |
-| `OCR_PROVIDER` | Déjala en `null` (default) para el placeholder, o ponla en `tesseract` para activar OCR real (Tesseract.js + `pdf-parse`, sin credenciales de nube — ver sección 5.3) |
-| `TELEGRAM_*` | Solo necesarias si vas a probar la ingesta real por Telegram (sección 5.2) — no requieren cuenta de desarrollador, solo un bot creado vía @BotFather |
+| `POSTGRES_PASSWORD` | Cambia el `assu` por defecto si esto no es local |
+| `OCR_PROVIDER` | `null` (default) o `tesseract` para OCR real (sección 11.3) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BANK_ACCOUNT_ID` | Ingesta de comprobantes por Telegram (sección 11.2) |
+| `EMAIL_PROVIDER` | `console` (default, solo loguea) o `smtp` para correos reales del portal |
+| `MONITORING_NOTIFIER` / `MONITORING_ALERT_EMAILS` | `email` para recibir alertas por correo |
+| `NEXT_PUBLIC_PORTAL_URL` / `PORTAL_APP_URL` | Deben apuntar al **puerto 3300** (el portal), no al 3100. Ojo: `NEXT_PUBLIC_PORTAL_URL` se graba en el bundle al construir la landing, así que tras cambiarla hay que reconstruirla (`docker compose up -d --build home`) |
 
-### 2.3 Generar Prisma Client y correr migraciones
-
-```bash
-pnpm run prisma:generate
-pnpm run prisma:migrate:dev
-```
-
-Esto crea todas las tablas, incluyendo las nuevas `payment_submissions` y
-`verification_events`. Si te pide un nombre para la migración, escribe
-algo como `add_payment_verification`.
-
-### 2.4 Correr los tests unitarios
-
-```bash
-pnpm test
-```
-
-Debe terminar con algo como `Test Suites: 27 passed` / `Tests: ~198 passed`
-(el número exacto puede variar levemente según la versión del código).
-Si quieres correr solo el motor de conciliación:
-
-```bash
-pnpm test reconciliation-engine
-```
-
-### 2.5 Levantar el backend
-
-```bash
-pnpm run start:dev
-```
-
-- API en `http://localhost:3000`
-- Swagger (documentación interactiva) en `http://localhost:3000/docs`
-- Todos los endpoints requieren el header `x-api-key: <tu
-  INTERNAL_API_KEY>` (la ingesta por Telegram no expone ningún endpoint
-  HTTP — el bot corre dentro del propio proceso, ver sección 5.2)
-
-### 2.6 Prueba rápida de humo (smoke test)
-
-```bash
-# Estado general del servicio
-curl http://localhost:3000/status -H "x-api-key: TU_API_KEY"
-
-# Crear un banco
-curl -X POST http://localhost:3000/banks \
-  -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" \
-  -d '{"name":"Nequi","adapterKey":"nequi","country":"CO","integrationType":"WEB_SCRAPING"}'
-```
-
-Si esto responde `200`/`201`, el backend, la base de datos y Redis están
-correctamente conectados.
+> `.env` está en `.gitignore`: no se sube al repositorio. Nunca lo
+> commitees con secretos reales.
 
 ---
 
-## 3. Frontend (assu-frontend, Next.js)
+## 4. Paso 3 — Construir las imágenes
 
-El panel es un proxy: nunca habla directo con el backend de Assu desde
-el navegador, todo pasa por `app/api/backend/[...path]/route.ts` en el
-servidor de Next.
-
-### 3.1 Instalar y configurar
-
-```bash
-cd ../assu-frontend
-pnpm install
-cp .env.example .env.local
+```powershell
+docker compose build
 ```
 
-Edita `.env.local`:
+Qué va a pasar, en orden:
 
+1. Se construye primero la imagen del **backend** (`assu-backend/docker/Dockerfile`),
+   que expone 3 etapas: `builder` (instala dependencias del workspace y
+   compila con `nest build`), `migrate` (reutiliza el builder + el CLI de
+   Prisma) y `runtime` (imagen final sobre Playwright con Chromium y sus
+   librerías de sistema ya instaladas).
+2. Luego los 3 frontends, cada uno con `output: 'standalone'`. La imagen
+   final copia solo `.next/standalone`, `.next/static` y el `server.js`,
+   sin `node_modules` completo: son imágenes delgadas.
+3. La primera vez tarda bastante (descarga imágenes base, instala todo el
+   workspace y descarga la fuente Manrope). Las siguientes builds son
+   mucho más rápidas gracias al caché de capas.
+
+Para construir una sola imagen:
+
+```powershell
+docker compose build backend
+docker compose build admin
 ```
-ASSU_BACKEND_API_URL=http://localhost:3000
-ASSU_BACKEND_API_KEY=TU_API_KEY   # el mismo valor que INTERNAL_API_KEY del backend
-```
 
-### 3.2 Levantar el frontend
-
-```bash
-pnpm dev
-```
-
-El puerto `3100` ya viene fijo en `package.json` (el backend ocupa el
-3000), así que no hace falta pasar `-p` a mano.
-
-Abre `http://localhost:3100`. Todo lo que hagas ahí (ver bancos, cuentas,
-movimientos, etc.) debería reflejar exactamente lo que ves por Swagger/curl
-contra el backend, ya que pasa por el mismo API.
+> **Si el build parece congelado** en el paso `pnpm install`, no lo está:
+> pnpm no imprime progreso granular. Confirma que Defender esté excluido
+> (sección 1.2) y espera.
 
 ---
 
-## 4. Probar el flujo original de Assu (detección de movimientos)
+## 5. Paso 4 — Levantar el stack
 
-1. Crea un banco (`POST /banks`), una cuenta (`POST /bank-accounts`) y
-   verifica que el Scheduler la programe: revisa los logs del backend, o
-   `GET /status` para ver cuentas activas.
-2. Como los tres adapters (`NequiAdapter`, `BancolombiaAdapter`,
-   `DaviplataAdapter`) tienen los selectores de Playwright pendientes
-   (Fase 0 del roadmap), la sincronización real contra cualquier portal
-   fallará — es esperado. Para probar el pipeline de todas formas, corre
-   los tests unitarios de los adapters, `sync-engine` y `movement-*`, que
-   usan mocks (ningún navegador ni red real):
-   ```bash
-   pnpm test bank-adapter sync-engine movement
-   ```
-3. Para ver movimientos ya guardados (si insertas alguno manualmente vía
-   Prisma Studio: `pnpm run prisma:studio`), usa:
-   ```bash
-   curl "http://localhost:3000/movements?accountId=<id>" -H "x-api-key: TU_API_KEY"
-   ```
+```powershell
+docker compose up -d
+```
+
+Compose respeta este orden:
+
+1. `postgres` y `redis` arrancan y deben quedar `healthy` (healthcheck).
+2. `migrate` espera a Postgres, aplica las migraciones de Prisma y
+   **termina**. El backend no arranca hasta que este job salga con éxito.
+3. `backend` arranca en `:3000`. Está marcado `service_healthy`: expone
+   `GET /health` y Compose lo sondea hasta que responde.
+4. `admin`, `home` y `portal` arrancan en `:3100`, `:3200` y `:3300`
+   recién cuando el backend está sano.
+
+Verifica el estado:
+
+```powershell
+docker compose ps
+```
+
+Deberías ver `postgres` y `redis` como `healthy`, `migrate` como `exited
+(0)` y `backend`/`admin`/`home`/`portal` como `running`.
+
+Confirma que las migraciones se aplicaron:
+
+```powershell
+docker compose logs migrate
+```
+
+La primera vez debería terminar con algo como `All migrations have been
+successfully applied.`
+
+Y mira los logs del backend:
+
+```powershell
+docker compose logs -f backend
+```
+
+Cuando veas `Assu escuchando en http://localhost:3000 — docs en /docs`, ya
+está listo. `Ctrl+C` deja de seguir los logs (no detiene el contenedor).
 
 ---
 
-## 5. Probar el módulo de verificación de comprobantes
+## 6. Paso 5 — Verificar que todo funciona
 
-### 5.1 Modo simulado (sin Telegram real) — recomendado para probar rápido
+### 6.1 Backend
 
-Este modo prueba OCR → conciliación → estados sin necesitar Telegram
-conectado. Inserta un `PaymentSubmission` directamente y deja que el
-sistema lo procese:
+```powershell
+# Healthcheck (no requiere API key)
+Invoke-RestMethod -Uri http://localhost:3000/health
 
-1. Crea un banco, una cuenta y (opcional) un movimiento manualmente vía
-   Prisma Studio:
-   ```bash
-   pnpm run prisma:studio
-   ```
-   En la tabla `bank_movements`, crea un registro de prueba con un
-   `reference`, `amount` y `date` que recuerdes.
-
-2. Inserta un `PaymentSubmission` en estado `RECEIVED` apuntando a esa
-   cuenta (mismo Prisma Studio, tabla `payment_submissions`). Como
-   `fileStorageRef` usa cualquier string — con `OCR_PROVIDER` en su
-   valor por defecto (`null`), el submission quedará en `MANUAL_REVIEW`
-   por baja confianza (comportamiento esperado y documentado: no hay un
-   proveedor de OCR real conectado a menos que actives la sección 5.3).
-
-3. Encola el procesamiento manualmente desde un script Node/REPL, o
-   simplemente espera: si prefieres probar la API sin tocar la base de
-   datos directamente, usa los endpoints de solo lectura y de revisión
-   manual:
-   ```bash
-   # Listar comprobantes
-   curl "http://localhost:3000/payment-verifications" -H "x-api-key: TU_API_KEY"
-
-   # Ver uno en detalle
-   curl "http://localhost:3000/payment-verifications/<id>" -H "x-api-key: TU_API_KEY"
-
-   # Ver su audit trail (por qué pasó de un estado a otro)
-   curl "http://localhost:3000/payment-verifications/<id>/events" -H "x-api-key: TU_API_KEY"
-
-   # Forzar una revisión manual (verificarlo a mano, como haría un operador)
-   # (una sola línea a propósito — el "\" de bash no funciona en PowerShell/cmd.exe)
-   curl -X POST "http://localhost:3000/payment-verifications/<id>/manual-review" -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"toStatus\":\"VERIFIED\",\"reason\":\"Confirmado manualmente en prueba\",\"actor\":\"tu-nombre@assu.app\"}"
-   ```
-
-4. Para probar el motor de conciliación de forma aislada y rápida (sin
-   base de datos), corre sus tests:
-   ```bash
-   cd assu-backend
-   pnpm test reconciliation-engine
-   ```
-   Ahí ya ves ejemplos reales de `EXACT_MATCH`, `PROBABLE_MATCH`,
-   `AMBIGUOUS_MATCH`, `NO_MATCH` y `PENDING`.
-
-### 5.2 Modo real con Telegram
-
-La ingesta usa [Telegraf](https://telegraf.js.org) sobre la Bot API
-oficial de Telegram — gratis, sin límite de mensajes y sin riesgo de
-bloqueo por automatización (a diferencia de open-wa/WhatsApp Web, que sí
-puede ser bloqueado por Meta). No necesitas cuenta de desarrollador ni
-verificación de negocio, solo crear el bot una vez.
-
-1. Crea al menos una cuenta bancaria (`POST /bank-accounts`) y copia su
-   `id`.
-2. Crea el bot en Telegram (una sola vez):
-   - Abre un chat con [@BotFather](https://t.me/BotFather) en Telegram.
-   - Envía `/newbot`, elige un nombre y un username (debe terminar en
-     `bot`, ej. `assu_receipts_bot`).
-   - BotFather te devuelve un token con forma
-     `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`. Guárdalo.
-3. En `assu-backend/.env`:
-   ```bash
-   TELEGRAM_BOT_TOKEN=<el token que te dio BotFather>
-   TELEGRAM_BANK_ACCOUNT_ID=<el id que copiaste en el paso 1>
-   ```
-4. Levanta el backend (`pnpm run start:dev`). En los logs deberías ver
-   `Bot de Telegram listo (long-polling).` — no hay QR que escanear ni
-   navegador que se abra.
-5. Desde tu celular, busca tu bot por el username que elegiste y envía
-   `/start` (o directamente una foto/PDF). Deberías:
-   - Recibir una respuesta automática de "Recibimos tu comprobante..."
-   - Ver el nuevo `PaymentSubmission` con `GET /payment-verifications`
-   - Verlo avanzar de estado en los logs del backend. Con
-     `OCR_PROVIDER=null` (default) llega a `MANUAL_REVIEW` siempre; con
-     `OCR_PROVIDER=tesseract` (sección 5.3) puede llegar directo a
-     `VERIFIED` si el monto/referencia coinciden con un movimiento.
-
-**Nota importante**: el bot recibe mensajes de cualquier chat que le
-escriba, y todos quedan asociados a la cuenta bancaria que pusiste en
-`TELEGRAM_BANK_ACCOUNT_ID` — no hay una URL de webhook distinta por
-cuenta. Para un demo con una sola cuenta esto es suficiente; para varias
-cuentas simultáneas se despliega un bot (token) por comercio/cuenta.
-
-### 5.3 Activar OCR real (Tesseract.js, sin cuenta de Google/AWS)
-
-Ya no es obligatorio quedarse en `MANUAL_REVIEW` por falta de OCR:
-
-```bash
-# en assu-backend/.env
-OCR_PROVIDER=tesseract
+# Estado general (requiere la API key)
+Invoke-RestMethod -Uri http://localhost:3000/status -Headers @{ 'x-api-key' = 'TU_INTERNAL_API_KEY' }
 ```
 
-Reinicia el backend. La primera vez que llegue un comprobante,
-Tesseract descarga el modelo de idioma español (~15MB) desde internet —
-puede tardar unos segundos extra esa primera vez.
+Cambia `TU_INTERNAL_API_KEY` por el valor real que pusiste en `.env`.
 
-Prueba el parser de texto (la parte que interpreta lo que el OCR leyó)
-de forma aislada y rápida, sin necesitar una imagen real:
+Swagger (documentación interactiva de toda la API) en
+http://localhost:3000/docs
 
-```bash
-pnpm test receipt-text-parser
-```
+### 6.2 Frontends
 
-Con esto activo, un comprobante real por Telegram con buena calidad de
-imagen debería poder llegar a `VERIFIED` automáticamente si el monto y
-la referencia coinciden con un movimiento — ya no se queda forzosamente
-en `MANUAL_REVIEW`. Si tus comprobantes reales no se están extrayendo
-bien, ajusta las expresiones regulares en
-`src/modules/receipt-processing/receipt-text-parser.ts` (están
-documentadas y tienen sus propios tests) sin tocar el resto del
-pipeline.
+| App | URL | Qué mirar |
+|---|---|---|
+| Panel admin | http://localhost:3100 | Listados de bancos, cuentas, movimientos y monitoreo |
+| Landing | http://localhost:3200 | Hero, secciones y los enlaces legales (`/privacidad`, `/terminos`, …) |
+| Portal de Comercios | http://localhost:3300 | `/registro` y `/login` (el registro/login vive **aquí**, no en el panel admin) |
 
-### 5.4 Selectores reales de Nequi (Fase 0)
+### 6.3 Checklist rápido
 
-Esto es lo único de la tabla de la sección 7 que **no** se resuelve
-solo con configuración — requiere que alguien con acceso a una cuenta
-real de Nequi inspeccione el portal. Sigue la guía paso a paso en
-[`assu-backend/docs/fase-0-nequi.md`](./assu-backend/docs/fase-0-nequi.md).
+- [ ] `docker compose ps` muestra `postgres` y `redis` healthy
+- [ ] `docker compose logs migrate` termina sin errores
+- [ ] `Invoke-RestMethod http://localhost:3000/health` responde `status = ok`
+- [ ] Swagger carga en http://localhost:3000/docs
+- [ ] El panel admin (3100) muestra los datos que crees por API
+- [ ] El portal (3300) muestra `/login` y `/registro`
+- [ ] La landing (3200) enlaza al portal en el **puerto 3300**
 
 ---
 
-## 6. Probar el endurecimiento de seguridad del scraping
+## 7. Paso 6 — Crear datos de prueba
 
-### 6.1 Credenciales de solo lectura (obligatorio)
+Un banco y una cuenta bancaria, usando la API con la API key interna:
 
-Desde esta sesión, `POST /bank-accounts` y `PATCH /bank-accounts/:id/credentials`
-exigen `confirmedReadOnlyCredentials: true` en el body — si lo omites o
-lo mandas en `false`, la API responde `400`:
+```powershell
+$headers = @{ 'x-api-key' = 'TU_INTERNAL_API_KEY' }
 
-```bash
-curl -X POST http://localhost:3000/bank-accounts -H "Content-Type: application/json" -H "x-api-key: TU_API_KEY" -d "{\"bankId\":\"<id de un banco creado antes>\",\"merchantId\":\"assu-demo\",\"accountNumber\":\"3001234567\",\"credentials\":{\"phone\":\"3001234567\",\"pin\":\"1234\"},\"confirmedReadOnlyCredentials\":true}"
+# 1) Crear un banco
+$bank = @{
+  name            = 'Nequi'
+  adapterKey      = 'nequi'
+  country         = 'CO'
+  integrationType = 'WEB_SCRAPING'
+} | ConvertTo-Json
+
+$created = Invoke-RestMethod -Method Post -Uri http://localhost:3000/banks `
+  -Headers $headers -ContentType 'application/json' -Body $bank
+
+$created
+
+# 2) Crear una cuenta bancaria asociada a ese banco.
+#    confirmedReadOnlyCredentials es OBLIGATORIO: la API responde 400 si
+#    falta o si viene en false (es la salvaguarda de "solo lectura").
+$account = @{
+  bankId                      = $created.id
+  merchantId                  = 'assu-demo'
+  accountNumber               = '3001234567'
+  credentials                 = @{ phone = '3001234567'; pin = '1234' }
+  confirmedReadOnlyCredentials = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/bank-accounts `
+  -Headers $headers -ContentType 'application/json' -Body $account
 ```
 
-### 6.2 Cifrado con AWS KMS (opcional, requiere una cuenta de AWS)
+Refresca el panel admin en http://localhost:3100: el banco y la cuenta
+deberían aparecer, porque el panel consulta el mismo backend a través de
+su proxy server-side.
 
-Por defecto usa AES-256-GCM local (nada que configurar). Para probar
-KMS necesitas una llave de KMS real y credenciales de AWS con permiso
-`kms:Encrypt`/`kms:Decrypt` sobre ella:
+> **Nota:** la sincronización real contra el portal de Nequi todavía no
+> funciona — los selectores de Playwright están pendientes (Fase 0). Ver
+> sección 11.4.
 
-```bash
-# en assu-backend/.env
-ENCRYPTION_PROVIDER=aws-kms
-AWS_KMS_REGION=us-east-1
-AWS_KMS_KEY_ID=arn:aws:kms:us-east-1:...:key/...
-# credenciales de AWS: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY o un rol de IAM
+---
+
+## 8. Paso 7 — Observabilidad (opcional)
+
+Prometheus y Grafana están en el perfil `observability`, así que **no**
+se levantan con el comando normal. Para incluirlos:
+
+```powershell
+docker compose --profile observability up -d
 ```
 
-Sin esto configurado, `pnpm test src/modules/credentials` ya prueba la
-lógica completa (encrypt/decrypt, manejo de errores) con el cliente de
-KMS mockeado — no necesitas una cuenta de AWS para validar que el
-código está bien.
+- **Prometheus**: http://localhost:9090 — scrapea `backend:3000/metrics`
+  cada 15s (config en `assu-backend/docker/prometheus/prometheus.docker.yml`).
+- **Grafana**: http://localhost:3001 — entra sin credenciales (modo
+  anónimo, solo para uso local). Los dashboards `Assu` y
+  `Collector Overview` ya vienen aprovisionados.
 
-### 6.3 Proxy dedicado/residencial (opcional)
+Si ya tenías el stack levantado, el comando de arriba solo agrega los dos
+servicios nuevos. Para levantarlos desde cero: `docker compose --profile
+observability up -d --build`.
 
-```bash
-# en assu-backend/.env
-PLAYWRIGHT_PROXY_SERVER=http://tu-proxy.example.com:8000
-PLAYWRIGHT_PROXY_USERNAME=usuario
-PLAYWRIGHT_PROXY_PASSWORD=clave
+---
+
+## 9. Operación del día a día
+
+### 9.1 Cambiar de configuración
+
+Edita `.env` y recrea solo el servicio afectado:
+
+```powershell
+docker compose up -d backend        # aplica el nuevo .env al backend
+docker compose up -d                # recrea lo que haya cambiado
 ```
 
-Verifica que se está usando con el test unitario (no necesitas un
-proxy real corriendo, solo confirma que Playwright recibe la config):
+> Excepción: `NEXT_PUBLIC_PORTAL_URL` (usado por la landing) se graba en el
+> bundle al compilar, no se lee en runtime. Para cambiarlo:
+> `docker compose up -d --build home`.
 
-```bash
-pnpm test playwright-adapter.base
+### 9.2 Reconstruir tras cambiar código
+
+Los contenedores sirven código **compilado**, así que un cambio en el
+código fuente requiere reconstruir la imagen:
+
+```powershell
+docker compose up -d --build portal   # ejemplo: solo el portal
+docker compose up -d --build          # todo el stack
 ```
 
-### 6.4 Aislamiento en contenedores Docker (opcional, requiere Docker)
+### 9.3 Aplicar una migración nueva
 
-```bash
-cd assu-backend
-docker build -f docker/scraper/Dockerfile -t assu-backend-scraper:latest .
-echo "SCRAPER_ISOLATION_MODE=docker" >> .env
-pnpm run start:dev
+El servicio `migrate` corre una sola vez por `up`. Si agregas una
+migración a `assu-backend/prisma/migrations/`, aplícala explícitamente:
+
+```powershell
+docker compose run --rm migrate
 ```
 
-Con esto activo, cada sync corre `docker run --rm` por dentro — revisa
-`docker ps` durante una sincronización y vas a ver el contenedor
-aparecer y desaparecer. Sin Docker instalado, deja
-`SCRAPER_ISOLATION_MODE=in-process` (default) y todo sigue funcionando
-igual que antes.
+### 9.4 Logs, reinicio y parada
 
-Para probar la lógica sin Docker real:
+```powershell
+docker compose logs -f backend      # seguir logs de un servicio
+docker compose logs --tail 100      # últimos 100 de todos
+docker compose restart backend
+docker compose stop                 # detiene sin borrar
+docker compose down                 # detiene y borra contenedores (conserva volúmenes)
+```
 
-```bash
-pnpm test docker-container-runner docker-isolated
+> `docker compose down -v` **borra los volúmenes** (base de datos,
+> comprobantes y fotos de documentos incluidos). Úsalo solo si quieres
+> empezar de cero.
+
+### 9.5 Volúmenes y datos
+
+| Volumen | Contenido |
+|---|---|
+| `assu_assu-postgres-data` | Base de datos Postgres |
+| `assu_assu-redis-data` | Datos de Redis |
+| `assu_assu-storage` | Comprobantes y fotos de documentos (cifradas) en `/app/assu-backend/storage` |
+| `assu_assu-grafana-data` / `assu_assu-prometheus-data` | Datos de observabilidad |
+
+```powershell
+docker volume ls
+```
+
+### 9.6 Conectarse a la base de datos
+
+```powershell
+docker compose exec postgres psql -U assu -d assu
+# \dt  para listar tablas, \q para salir
+```
+
+### 9.7 Respaldo y restauración
+
+```powershell
+# Respaldo
+docker compose exec -T postgres pg_dump -U assu -d assu > respaldo.sql
+
+# Restauración
+Get-Content respaldo.sql | docker compose exec -T postgres psql -U assu -d assu
 ```
 
 ---
 
-## 7. Qué NO vas a poder probar todavía (y por qué)
+## 10. Antes de pasar a producción
+
+- **Secrets:** genera valores reales (nunca los de ejemplo) y guárdalos en
+  un gestor de secretos, no en el repo.
+- **Marcadores legales:** reemplaza los textos entre corchetes de
+  `assu-home/lib/legal.ts` (razón social, NIT, dirección y correo de
+  habeas data) antes de publicar la landing.
+- **Correo real:** `EMAIL_PROVIDER=smtp` + `SMTP_*` para que el portal
+  envíe códigos de verificación y recuperación de contraseña de verdad.
+- **Alertas reales:** `MONITORING_NOTIFIER=email` + `MONITORING_ALERT_EMAILS`.
+- **Cifrado de credenciales:** valora `ENCRYPTION_PROVIDER=aws-kms` para
+  que la clave nunca viva en el servidor.
+- **TLS y exposición:** los puertos `3100`/`3200`/`3300`/`3000` se publican
+  para pruebas. En producción, pon un reverse proxy con HTTPS delante y no
+  expongas el backend directamente.
+- **Postgres/Redis** ya quedan sin publicar al host: solo se alcanzan por
+  la red interna del compose.
+
+---
+
+## 11. Pruebas funcionales del stack
+
+### 11.1 Pruebas unitarias (sin Docker)
+
+```powershell
+pnpm install --reporter=append-only
+pnpm --filter assu-backend test
+```
+
+Pruebas puntuales útiles:
+
+```powershell
+pnpm --filter assu-backend test reconciliation-engine
+pnpm --filter assu-backend test receipt-text-parser
+pnpm --filter assu-backend test bank-adapter sync-engine movement
+```
+
+### 11.2 Ingesta de comprobantes por Telegram
+
+La ingesta usa la Bot API oficial de Telegram (Telegraf): gratis, sin
+límite de mensajes y sin riesgo de bloqueo por automatización.
+
+1. Crea una cuenta bancaria por API (sección 7) y copia su `id`.
+2. Crea el bot una sola vez: abre [@BotFather](https://t.me/BotFather),
+   envía `/newbot`, elige nombre y un username que termine en `bot`.
+   BotFather te devuelve un token como
+   `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`.
+3. En `.env` de la raíz:
+   ```
+   TELEGRAM_BOT_TOKEN=<el token>
+   TELEGRAM_BANK_ACCOUNT_ID=<el id de la cuenta>
+   ```
+4. Recrea el backend: `docker compose up -d backend`. En los logs
+   verás `Bot de Telegram listo (long-polling).`
+5. Desde tu celular, busca el bot y envía una foto o PDF. Recibirás una
+   respuesta automática y aparecerá un `PaymentSubmission`.
+
+Consulta los comprobantes:
+
+```powershell
+$headers = @{ 'x-api-key' = 'TU_INTERNAL_API_KEY' }
+
+Invoke-RestMethod "http://localhost:3000/payment-verifications" -Headers $headers
+Invoke-RestMethod "http://localhost:3000/payment-verifications/<id>/events" -Headers $headers
+
+# Forzar una revisión manual (una sola línea a propósito)
+$body = @{ toStatus = 'VERIFIED'; reason = 'Confirmado manualmente'; actor = 'tu-nombre@assu.app' } | ConvertTo-Json
+Invoke-RestMethod -Method Post "http://localhost:3000/payment-verifications/<id>/manual-review" -Headers $headers -ContentType 'application/json' -Body $body
+```
+
+### 11.3 Activar OCR real (Tesseract, sin cuentas de nube)
+
+En `.env`: `OCR_PROVIDER=tesseract` y recrea el backend. La primera vez,
+Tesseract descarga el modelo de español (~15 MB). Con esto, un comprobante
+real con buena calidad de imagen puede llegar a `VERIFIED`
+automáticamente si el monto y la referencia coinciden con un movimiento;
+sin esto, todo cae en `MANUAL_REVIEW` (comportamiento esperado).
+
+### 11.4 Lo que todavía no se puede probar
 
 | Pendiente | Motivo |
 |---|---|
-| Sincronización real contra el portal de Nequi | `NequiAdapter` tiene los selectores de Playwright pendientes (Fase 0 del roadmap: investigación real del portal). Ver `assu-backend/docs/fase-0-nequi.md` — requiere una cuenta real de Nequi, no se puede resolver solo con configuración |
-
-Con `OCR_PROVIDER=tesseract` (sección 5.3) y Telegram conectado (sección
-5.2), el `EXACT_MATCH` de punta a punta por Telegram puede funcionar
-solo. Lo único que le falta al flujo completo es la Fase 0 de Nequi para
-que la detección de movimientos en sí sea real (hoy el `NequiAdapter` no
-puede loguearse contra el portal real todavía).
+| Sincronización real contra el portal de Nequi | `NequiAdapter` tiene los selectores de Playwright pendientes (Fase 0): requiere una cuenta real de Nequi. Guía paso a paso en [`assu-backend/docs/fase-0-nequi.md`](./assu-backend/docs/fase-0-nequi.md) |
 
 ---
 
-## 8. Checklist rápido de "todo funciona"
+## 12. Alternativa: desarrollar sin Docker
 
-- [ ] `docker ps` muestra Postgres y Redis healthy
-- [ ] `pnpm test` (backend) pasa sin fallos
-- [ ] `pnpm test reconciliation-engine` pasa sus 7 tests
-- [ ] `curl http://localhost:3000/status` responde 200
-- [ ] Swagger carga en `http://localhost:3000/docs`
-- [ ] El admin en `http://localhost:3100` muestra los bancos/cuentas creados por curl
-- [ ] `POST /payment-verifications/:id/manual-review` cambia el estado y aparece en `GET /payment-verifications/:id/events`
-- [ ] `POST /bank-accounts` sin `confirmedReadOnlyCredentials: true` responde 400
-- [ ] `pnpm test docker-container-runner docker-isolated` pasa sin fallos
+Útil cuando quieres recarga en caliente. Levanta solo la infraestructura
+en Docker y corre las apps en el host:
+
+```powershell
+# 1) Infraestructura en Docker (solo Postgres + Redis)
+cd C:\Users\DESKTOP\Desktop\assu\assu-backend
+docker compose -f docker/docker-compose.yml up -d postgres redis
+
+# 2) Backend: instalar, migrar y arrancar con recarga en caliente
+Copy-Item .env.example .env   # apunta DATABASE_URL/REDIS_* a localhost
+pnpm install --reporter=append-only
+pnpm run prisma:generate
+pnpm run prisma:migrate:dev
+pnpm run start:dev
+
+# 3) Frontends, en otra terminal (desde la raíz del monorepo)
+cd C:\Users\DESKTOP\Desktop\assu
+pnpm --filter assu-home run dev     # 3200
+pnpm --filter assu-portal run dev   # 3300
+pnpm --filter assu-frontend run dev # 3100
+```
+
+El detalle de este flujo está en
+[GUIA-PENDIENTES-Y-DESPLIEGUE.md](./GUIA-PENDIENTES-Y-DESPLIEGUE.md).
+
+> No mezcles ambos modos a la vez: la infra de `assu-backend/docker` y la
+> del compose de la raíz usan el mismo puerto de Postgres/Redis. Una u otra.
+
+---
+
+## 13. Solución de problemas
+
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| `failed to connect ... dockerDesktopLinuxEngine` | El daemon de Docker no está corriendo | Abre Docker Desktop y espera a que arranque |
+| `failed to solve: ... pnpm-lock.yaml: not found` | Contexto de build incorrecto | Construye con el contexto de la **raíz**: `docker compose build` (no `docker build` desde una subcarpeta) |
+| `error: required variable CREDENTIALS_ENCRYPTION_KEY is missing` | Falta un secreto en `.env` | Complétalo (sección 3.2) |
+| Build del frontend falla con `fonts.gstatic.com ... ECONNRESET` | Sin salida a internet durante el build | Habilita el acceso saliente y reconstruye |
+| El build "se congela" en `pnpm install` | Defender escaneando en tiempo real + disco lento | Agrega las exclusiones (sección 1.2) |
+| `backend` reinicia en bucle | Las migraciones fallaron o Postgres no estaba listo | `docker compose logs migrate` y `docker compose logs postgres` |
+| `migrate` sale con error `P3005` (base ya no vacía) | Se apuntó a una base con datos previos | Usa la base del compose o haz `prisma migrate resolve` según el caso |
+| El panel admin (3100) devuelve 401 | `INTERNAL_API_KEY` del frontend no coincide con la del backend | Es la misma variable en el `.env` de la raíz: corrige y recrea ambos servicios |
+| El portal (3300) no envía correos | `EMAIL_PROVIDER=console` (default) | Cambia a `smtp` y define `SMTP_*` |
+| `bind: address already in use` | Otro proceso ocupa el puerto (3000/3100/3200/3300) | Para el proceso o cambia el mapeo en `docker-compose.yml` |
+| Cambié el código y el contenedor sirve lo viejo | Los contenedores usan código compilado | Reconstruye: `docker compose up -d --build <servicio>` |
+| Un cambio en `.env` no surte efecto | El contenedor no se recreó | `docker compose up -d <servicio>` |
+
+---
+
+## 14. Resumen de comandos
+
+```powershell
+# Preparación (una vez)
+cd C:\Users\DESKTOP\Desktop\assu
+Copy-Item .env.example .env
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"  # x3
+
+# Construir y levantar
+docker compose build
+docker compose up -d
+docker compose ps
+
+# Con observabilidad
+docker compose --profile observability up -d
+
+# Verificación
+Invoke-RestMethod -Uri http://localhost:3000/health
+# Panel admin  http://localhost:3100
+# Landing      http://localhost:3200
+# Portal       http://localhost:3300
+# Swagger      http://localhost:3000/docs
+
+# Actualizar
+docker compose up -d --build
+docker compose run --rm migrate
+
+# Operar
+docker compose logs -f backend
+docker compose restart backend
+docker compose down          # conserva datos
+docker compose down -v       # ¡borra los datos!
+```
